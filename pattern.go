@@ -7,11 +7,13 @@ import (
 	"github.com/danwakefield/fnmatch"
 )
 
+// Pattern represents per-line patterns within a .gitignore file
 type Pattern interface {
 	Match
 	Match(string, bool) bool
 } // Pattern{}
 
+// pattern is the base implementation of a .gitignore pattern
 type pattern struct {
 	_negated   bool
 	_anchored  bool
@@ -21,20 +23,30 @@ type pattern struct {
 	_position  Position
 } // pattern()
 
+// name represents patterns matching a file or path name (i.e. the last
+// component of a path)
 type name struct {
 	pattern
 } // name{}
 
+// path represents a pattern that contains at least one path separator within
+// the pattern (i.e. not at the start or end of the pattern)
 type path struct {
 	pattern
 	_depth int
 } // path{}
 
+// wildcard represents a pattern that contains at least one "any" token "**"
+// allowing for recursive matching.
 type wildcard struct {
 	pattern
 	_tokens []*Token
 } // wildcard{}
 
+// NewPattern returns a Pattern from the ordered set of Tokens. The tokens are
+// assumed to represent a well-formed .gitignore pattern. A Pattern may be
+// negated, anchored to the start of the path (relative to the base directory
+// of tie containing .gitignore), or match directories only.
 func NewPattern(tokens []*Token) Pattern {
 	// extract the pattern position from first token
 	_position := tokens[0].Position
@@ -74,6 +86,8 @@ func NewPattern(tokens []*Token) Pattern {
 	return _pattern.compile(tokens)
 } // NewPattern()
 
+// compile generates a specific Pattern (i.e. name, path or wildcard)
+// represented by the list of tokens.
 func (p *pattern) compile(tokens []*Token) Pattern {
 	// what tokens do we have in this pattern?
 	//      - ANY token means we can match to any depth
@@ -96,12 +110,18 @@ func (p *pattern) compile(tokens []*Token) Pattern {
 	}
 } // compile()
 
+// Ignore returns true if the pattern describes files or paths that should be
+// ignored.
 func (p *pattern) Ignore() bool { return !p._negated }
 
-func (p *pattern) Accept() bool { return p._negated }
+// Include returns true if the pattern describes files or paths that should be
+// included (i.e. not ignored)
+func (p *pattern) Include() bool { return p._negated }
 
+// Position returns the position of the first token of this pattern.
 func (p *pattern) Position() Position { return p._position }
 
+// String returns the string representation of the pattern.
 func (p *pattern) String() string { return p._string }
 
 //
@@ -109,10 +129,16 @@ func (p *pattern) String() string { return p._string }
 //      - designed to match trailing file/directory names only
 //
 
+// name returns a Pattern designed to match file or directory names, with no
+// path elements.
 func (p *pattern) name(tokens []*Token) Pattern {
 	return &name{*p}
 } // name()
 
+// Match returns true if the given path matches the name pattern. If the
+// pattern is meant for directories only, and the path is not a directory,
+// Match will return false. The matching is performed by fnmatch(). It
+// is assumed path is relative to the base path of the owning GitIgnore.
 func (n *name) Match(path string, isdir bool) bool {
 	// are we expecting a directory?
 	if n._directory && !isdir {
@@ -133,6 +159,8 @@ func (n *name) Match(path string, isdir bool) bool {
 //      - designed to match complete or partial paths (not just filenames)
 //
 
+// path returns a Pattern designed to match paths that include at least one
+// path separator '/' neither at the end nor the start of the pattern.
 func (p *pattern) path(tokens []*Token) Pattern {
 	// how many directory components are we expecting?
 	_depth := 0
@@ -143,10 +171,14 @@ func (p *pattern) path(tokens []*Token) Pattern {
 	}
 
 	// return the pattern instance
-	return &path{pattern: *p,
-		_depth: _depth}
+	return &path{pattern: *p, _depth: _depth}
 } // path()
 
+// Match returns true if the given path matches the path pattern. If the
+// pattern is meant for directories only, and the path is not a directory,
+// Match will return false. The matching is performed by fnmatch()
+// with flags set to FNM_PATHNAME. It is assumed path is relative to the
+// base path of the owning GitIgnore.
 func (p *path) Match(path string, isdir bool) bool {
 	// are we expecting a directory
 	if p._directory && !isdir {
@@ -191,6 +223,8 @@ func (p *path) Match(path string, isdir bool) bool {
 // "any" patterns
 //
 
+// any returns a Pattern designed to match paths that include at least one
+// wildcard pattern '**', specifying recursive matching.
 func (p *pattern) any(tokens []*Token) Pattern {
 	// consider only the non-SEPARATOR tokens, as these will be matched
 	// against the path components
@@ -216,6 +250,11 @@ func (p *pattern) any(tokens []*Token) Pattern {
 	return &wildcard{*p, _tokens}
 } // any()
 
+// Match returns true if the given path matches the wildcard pattern. If the
+// pattern is meant for directories only, and the path is not a directory,
+// Match will return false. The matching is performed by recursively applying
+// fnmatch() with flags set to FNM_PATHNAME. It is assumed path is relative to
+// the base path of the owning GitIgnore.
 func (w *wildcard) Match(path string, isdir bool) bool {
 	// are we expecting a directory?
 	if w._directory && !isdir {
@@ -229,6 +268,8 @@ func (w *wildcard) Match(path string, isdir bool) bool {
 	return w.match(_parts, w._tokens)
 } // Match()
 
+// match performs the recursive matching for wildcard patterns. A wildcard
+// token '**' may match any path component, or no path component.
 func (w *wildcard) match(path []string, tokens []*Token) bool {
 	// if we have no more tokens, then we have matched this path
 	// if there are also no more path elements, otherwise there's no match
@@ -260,9 +301,7 @@ func (w *wildcard) match(path []string, tokens []*Token) bool {
 			// we match if the remainder of the path matches the
 			// remaining tokens
 			_path := path[0]
-			if fnmatch.Match(_token.Token(),
-				_path,
-				fnmatch.FNM_PATHNAME) {
+			if fnmatch.Match(_token.Token(), _path, fnmatch.FNM_PATHNAME) {
 				return w.match(path[1:], tokens[1:])
 			}
 		}

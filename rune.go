@@ -1,7 +1,7 @@
 package gitignore
 
-// define the sentinel runes of the lexer
 const (
+	// define the sentinel runes of the lexer
 	_EOF       = rune(0)
 	_CR        = rune('\r')
 	_NEWLINE   = rune('\n')

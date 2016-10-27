@@ -4,12 +4,15 @@ import (
 	"io"
 )
 
+// Parser is the interface for parsing .gitignore files and extracting the set
+// of patterns specified in the .gitignore file.
 type Parser interface {
 	Parse() []Pattern
 	Next() Pattern
 	Position() Position
 } // Parser{}
 
+// parser is the implementation of the .gitignore parser
 type parser struct {
 	_lexer Lexer
 	_undo  []*Token
@@ -17,17 +20,15 @@ type parser struct {
 	_error func(Error) bool
 } // parser{}
 
-//
-// define the parser
-//
-
+// NewParser returns a new Parser instance for the given stream r, for a
+// .gitignore file located in the base directory. If err is not nil, it will be
+// called for every error encountered during parsing.
 func NewParser(r io.Reader, base string, err func(Error) bool) Parser {
-	// return the parser instance
-	return &parser{_lexer: NewLexer(r),
-		_error: err,
-		_base:  base}
+	return &parser{_lexer: NewLexer(r), _error: err, _base: base}
 } // NewParser()
 
+// Parse returns all well-formed .gitignore Patterns contained within the
+// parser stream.
 func (p *parser) Parse() []Pattern {
 	// keep parsing until there's no more patterns
 	_patterns := make([]Pattern, 0)
@@ -40,6 +41,11 @@ func (p *parser) Parse() []Pattern {
 	}
 } // Parse()
 
+// Next returns the next well-formed .gitignore Pattern from the parser stream.
+// If an error is encountered, and the error handler is either not defined, or
+// returns true, Next will skip to the end of the current line and attempt to
+// parse the next Pattern. If the error handler returns false, or the parser
+// reaches the end of the stream, Next returns nil.
 func (p *parser) Next() Pattern {
 	// we will attempt to return the next pattern from the lexer
 	//      - each pattern is contained within a single line
@@ -105,6 +111,7 @@ func (p *parser) Next() Pattern {
 	}
 } // Next()
 
+// Position returns the current position of the parser in the input stream.
 func (p *parser) Position() Position {
 	// if we have any previously read tokens, then the token at
 	// the end of the "undo" list (most recently "undone") gives the
@@ -122,6 +129,9 @@ func (p *parser) Position() Position {
 // private methods
 //
 
+// build attempts to build a well-formed .gitignore Pattern starting from the
+// given Token t. An Error will be returned if the sequence of tokens returned
+// by the Lexer does not represent a valid Pattern.
 func (p *parser) build(t *Token) (Pattern, Error) {
 	// attempt to create a valid pattern
 	switch t.Type {
@@ -146,6 +156,9 @@ func (p *parser) build(t *Token) (Pattern, Error) {
 	}
 } // build()
 
+// negation attempts to build a well-formed negated .gitignore Pattern starting
+// from the negation Token t. As with build, negation returns an Error if the
+// sequence of tokens returned by the Lexer does not represent a valid Pattern.
 func (p *parser) negation(t *Token) (Pattern, Error) {
 	// a negation appears before a path specification, so
 	// skip the negation token
@@ -167,6 +180,10 @@ func (p *parser) negation(t *Token) (Pattern, Error) {
 	return NewPattern(_tokens), nil
 } // negation()
 
+// path attempts to build a well-formed .gitignore Pattern representing a path
+// specification, starting with the Token t. If the sequence of tokens returned
+// by the Lexer does not represent a valid Pattern, path returns an Error.
+// Trailing whitespace is dropped from the sequence of pattern tokens.
 func (p *parser) path(t *Token) (Pattern, Error) {
 	// extract the sequence of tokens for this path
 	_tokens, _err := p.sequence(t)
@@ -191,6 +208,9 @@ func (p *parser) path(t *Token) (Pattern, Error) {
 	return NewPattern(_tokens), nil
 } // path()
 
+// sequence attempts to extract a well-formed Token sequence from the Lexer
+// representing a .gitignore Pattern. sequence returns an Error if the
+// retrieved sequence of tokens does not represent a valid Pattern.
 func (p *parser) sequence(t *Token) ([]*Token, Error) {
 	// extract the sequence of tokens for a valid path
 	//      - this excludes the negation token, which is handled as
@@ -217,6 +237,10 @@ func (p *parser) sequence(t *Token) ([]*Token, Error) {
 	}
 } // sequence()
 
+// separator attempts to retrieve a valid sequence of tokens that may appear
+// after the path separator '/' Token t. An Error is returned if the sequence if
+// tokens is not valid, or if there is an error extracting tokens from the
+// input stream.
 func (p *parser) separator(t *Token) ([]*Token, Error) {
 	// build a list of tokens that may appear after a separator
 	_tokens := []*Token{t}
@@ -261,6 +285,10 @@ func (p *parser) separator(t *Token) ([]*Token, Error) {
 	}
 } // separator()
 
+// any attempts to retrieve a valid sequence of tokens that may appear
+// after the wildcard '**' Token t. An Error is returned if the sequence if
+// tokens is not valid, or if there is an error extracting tokens from the
+// input stream.
 func (p *parser) any(t *Token) ([]*Token, Error) {
 	// build the list of tokens that may appear after "any" (i.e. "**")
 	_tokens := []*Token{t}
@@ -293,6 +321,10 @@ func (p *parser) any(t *Token) ([]*Token, Error) {
 	}
 } // any()
 
+// pattern attempts to retrieve a valid sequence of tokens that may appear
+// after the path pattern Token t. An Error is returned if the sequence if
+// tokens is not valid, or if there is an error extracting tokens from the
+// input stream.
 func (p *parser) pattern(t *Token) ([]*Token, Error) {
 	// build the list of tokens that may appear after a pattern
 	_tokens := []*Token{t}
@@ -327,6 +359,8 @@ func (p *parser) pattern(t *Token) ([]*Token, Error) {
 	}
 } // pattern()
 
+// eol attempts to consume Lexer tokens until end of line or end of file is
+// reached. If a non-whitspace token is encountered, eol will return an error.
 func (p *parser) eol() Error {
 	// attempt to read to the end of line
 	//      - only consume whitespace
@@ -357,6 +391,8 @@ func (p *parser) eol() Error {
 	}
 } // eol()
 
+// next returns the next token from the Lexer, or an error if there is a
+// problem reading from the input stream.
 func (p *parser) next() (*Token, Error) {
 	// do we have any previously read tokens?
 	_length := len(p._undo)
@@ -370,6 +406,8 @@ func (p *parser) next() (*Token, Error) {
 	return p._lexer.Next()
 } // next()
 
+// skip reads Tokens from the input until the end of line or end of file is
+// reached. If there is a problem reading tokens, an Error is returned.
 func (p *parser) skip() Error {
 	// skip to the next end of line or end of file token
 	for {
@@ -388,6 +426,8 @@ func (p *parser) skip() Error {
 	}
 } // skip()
 
+// undo returns the given Token t to the parser input stream to be retrieved
+// again on a subsequent call to next.
 func (p *parser) undo(t *Token) {
 	// add this token to the list of previously read tokens
 	//      - initialise the undo list if required
@@ -397,11 +437,14 @@ func (p *parser) undo(t *Token) {
 	p._undo = append(p._undo, t)
 } // undo()
 
+// err returns an Error for the error e, capturing the current parser Position.
 func (p *parser) err(e error) Error {
 	// convert the error to include the parser position
 	return NewError(e, p.Position())
 } // err()
 
+// errors returns the response from the parser error handler to the Error e. If
+// no error handler has been configured for this parser, errors returns true.
 func (p *parser) errors(e Error) bool {
 	// do we have an error handler?
 	if p._error == nil {

@@ -5,28 +5,21 @@ import (
 	"io"
 )
 
+//
 // inspired by https://blog.gopheracademy.com/advent-2014/parsers-lexers/
-
-//
-// define the lexer
 //
 
+// lexer is the implementation of the .gitignore lexical analyser
 type lexer struct {
-	// the buffered reader
-	_r *bufio.Reader
-
-	// the list of unread runes
-	//      - we need the ability to "unread" more that one rune, so we
-	//        mimic the UnreadRune() behaviour of bufio.Reader
-	_unread []rune
-
-	// counters for tracking where in input stream the lexer is
+	_r        *bufio.Reader
+	_unread   []rune
 	_offset   int
 	_line     int
 	_column   int
 	_previous int
 } // lexer{}
 
+// Lexer is the interface to the lexical analyser for .gitignore files
 type Lexer interface {
 	Next() (*Token, Error)
 
@@ -34,10 +27,14 @@ type Lexer interface {
 	String() string
 } // Lexer{}
 
+// NewLexer returns a Lexer instance for the io.Reader r.
 func NewLexer(r io.Reader) Lexer {
 	return &lexer{_r: bufio.NewReader(r), _line: 1, _column: 1}
 } // NewLexer()
 
+// Next returns the next Token from the Lexer reader. If an error is
+// encountered, it will be returned as an Error instance, detailing the error
+// and its position within the stream.
 func (l *lexer) Next() (*Token, Error) {
 	// read the next rune
 	_r, _err := l.read()
@@ -63,13 +60,13 @@ func (l *lexer) Next() (*Token, Error) {
 		fallthrough
 	case _NEWLINE:
 		l.unread(_r)
-		_rtn, _err := l.eol(false)
+		_rtn, _err := l.eol()
 		return l.token(EOL, _rtn), _err
 
 	// comment '#'
 	case _COMMENT:
 		l.unread(_r)
-		_rtn, _err := l.eol(true)
+		_rtn, _err := l.eol()
 		return l.token(COMMENT, _rtn), _err
 
 	// separator '/'
@@ -112,10 +109,13 @@ func (l *lexer) Next() (*Token, Error) {
 	}
 } // Next()
 
+// Position returns the current position of the Lexer.
 func (l *lexer) Position() Position {
 	return NewPosition(l._line, l._column, l._offset)
 } // Position()
 
+// String returns the string representation of the current position of the
+// Lexer.
 func (l *lexer) String() string {
 	return l.Position().String()
 } // String()
@@ -124,6 +124,9 @@ func (l *lexer) String() string {
 // private methods
 //
 
+// read the next rune from the stream. Return an Error if there is a problem
+// reading from the stream. If the end of stream is reached, return the EOF
+// Token.
 func (l *lexer) read() (rune, Error) {
 	var _r rune
 	var _err error
@@ -150,6 +153,9 @@ func (l *lexer) read() (rune, Error) {
 	return _r, l.err(_err)
 } // read()
 
+// unread returns the given runes to the stream, making them eligible to be
+// read again. The runes are returned in the order given, so the last rune
+// specified will be the next rune read from the stream.
 func (l *lexer) unread(r ...rune) {
 	// do we have an runes to "unread"
 	_length := len(r)
@@ -179,6 +185,9 @@ func (l *lexer) unread(r ...rune) {
 	}
 } // unread()
 
+// peek returns the next rune in the stream without consuming it (i.e. it will
+// be returned by the next call to read or peek). peek will return an error if
+// there is a problem reading from the stream.
 func (l *lexer) peek() (rune, Error) {
 	// read the next rune
 	_r, _err := l.read()
@@ -191,6 +200,7 @@ func (l *lexer) peek() (rune, Error) {
 	return _r, _err
 } // peek()
 
+// newline adjusts the positional counters when an end of line is reached
 func (l *lexer) newline() {
 	// adjust the counters for the new line
 	l._previous = l._column
@@ -198,6 +208,11 @@ func (l *lexer) newline() {
 	l._line++
 } // newline()
 
+// escape attempts to read an escape sequence (e.g. '\ ') form the input
+// stream. An error will be returned if there is an error reading from the
+// stream. escape returns just the escape rune if the following rune is either
+// end of line or end of file (since .gitignore files do not support line
+// continuations).
 func (l *lexer) escape() ([]rune, Error) {
 	// attempt to process the escape sequence
 	_peek, _err := l.peek()
@@ -223,7 +238,11 @@ func (l *lexer) escape() ([]rune, Error) {
 	return []rune{_ESCAPE, _peek}, nil
 } // escape()
 
-func (l *lexer) eol(comment bool) ([]rune, Error) {
+// eol returns all runes from the current position to the end of the line. An
+// error is returned if there is a problem reading from the stream, or if a
+// carriage return character '\r' is encountered that is not followed by a
+// newline '\n'.
+func (l *lexer) eol() ([]rune, Error) {
 	// read the to the end of the line
 	//      - we should only be called here when we encounter an end of line
 	//        sequence or a comment
@@ -262,6 +281,8 @@ func (l *lexer) eol(comment bool) ([]rune, Error) {
 	}
 } // eol()
 
+// whitespace returns all whitespace (i.e. ' ' and '\t') runes in a sequence,
+// or an error if there is a problem reading the next runes.
 func (l *lexer) whitespace() ([]rune, Error) {
 	// read until we hit the first non-whitespace rune
 	_ws := make([]rune, 0, 1)
@@ -293,6 +314,9 @@ func (l *lexer) whitespace() ([]rune, Error) {
 	}
 } // whitespace()
 
+// pattern returns all runes representing a file or path pattern, delimited
+// either by unescaped whitespace, a path separator '/' or enf of file. An
+// error is returned if a problem is encountered reading from the stream.
 func (l *lexer) pattern() ([]rune, Error) {
 	// read until we hit the first whitespace/end of line/eof rune
 	_pattern := make([]rune, 0, 1)
@@ -351,6 +375,7 @@ func (l *lexer) pattern() ([]rune, Error) {
 	}
 } // pattern()
 
+// token returns a Token instance of the given type_ represented by word runes.
 func (l *lexer) token(type_ TokenType, word []rune) *Token {
 	// extract the lexer position
 	//      - the column is taken from the current column position
@@ -372,6 +397,8 @@ func (l *lexer) token(type_ TokenType, word []rune) *Token {
 	return NewToken(type_, word, position)
 } // token()
 
+// err returns an Error encapsulating the error e and the current Lexer
+// position.
 func (l *lexer) err(e error) Error {
 	// do we have an error?
 	if e == nil {
