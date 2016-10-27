@@ -22,3 +22,12 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+# ignore directories
+bin/
+pkg/
+**/github.com/
+
+# ignore edit files
+.*~
+.*.sw?
