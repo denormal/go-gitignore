@@ -84,5 +84,5 @@ func (t *Token) Token() string {
 // String returns a string representation of the Token, encapsulating its
 // position in the input stream, its name (i.e. type), and its runes.
 func (t *Token) String() string {
-	return fmt.Sprintf("%s: %s %q\n", t.Position.String(), t.Name(), t.Token())
+	return fmt.Sprintf("%s: %s %q", t.Position.String(), t.Name(), t.Token())
 } // String()

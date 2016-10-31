@@ -37,7 +37,7 @@ type ignore struct {
 // otherwise, parsing will continue until end of file has been reached.
 func NewGitIgnore(r io.Reader, base string, errors func(Error) bool) GitIgnore {
 	// extract the patterns from the reader
-	_parser := NewParser(r, base, errors)
+	_parser := NewParser(r, errors)
 	_patterns := _parser.Parse()
 
 	return &ignore{_base: base, _pattern: _patterns}

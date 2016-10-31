@@ -6,15 +6,19 @@ import (
 
 // Position records the position of the .gitignore parser.
 type Position struct {
-	Offset int
-	Column int
 	Line   int
+	Column int
+	Offset int
 } // Position{}
 
 // NewPosition returns the Position instance for the given line, column, and
 // rune offset.
 func NewPosition(line int, column int, offset int) Position {
-	return Position{Offset: offset, Column: column, Line: line}
+	return Position{
+		Line:   line,
+		Column: column,
+		Offset: offset,
+	}
 } // NewPosition()
 
 // String returns a string representation of the current position.

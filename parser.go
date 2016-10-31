@@ -16,15 +16,14 @@ type Parser interface {
 type parser struct {
 	_lexer Lexer
 	_undo  []*Token
-	_base  string
 	_error func(Error) bool
 } // parser{}
 
 // NewParser returns a new Parser instance for the given stream r, for a
 // .gitignore file located in the base directory. If err is not nil, it will be
 // called for every error encountered during parsing.
-func NewParser(r io.Reader, base string, err func(Error) bool) Parser {
-	return &parser{_lexer: NewLexer(r), _error: err, _base: base}
+func NewParser(r io.Reader, err func(Error) bool) Parser {
+	return &parser{_lexer: NewLexer(r), _error: err}
 } // NewParser()
 
 // Parse returns all well-formed .gitignore Patterns contained within the

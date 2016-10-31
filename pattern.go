@@ -68,9 +68,10 @@ func NewPattern(tokens []*Token) Pattern {
 
 	// is this pattern for directories only?
 	_directory := false
-	if tokens[len(tokens)-1].Type == SEPARATOR {
+	_last := len(tokens) - 1
+	if tokens[_last].Type == SEPARATOR {
 		_directory = true
-		tokens = tokens[1:]
+		tokens = tokens[:_last]
 	}
 
 	// build the pattern expression
@@ -194,7 +195,7 @@ func (p *path) Match(path string, isdir bool) bool {
 	// the expected "depth" of this pattern
 	_depth := p._depth
 	_index := len(path) - 1
-	for ; _index > 0; _index-- {
+	for ; _index >= 0; _index-- {
 		// this is safe to do, since the separator is a single-byte rune
 		if rune(path[_index]) == _SEPARATOR {
 			_depth--
