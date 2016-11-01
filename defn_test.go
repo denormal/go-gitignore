@@ -24,6 +24,7 @@ we support   spaces
 
 /**/this.is.not/a ** valid/pattern
 /**/nor/is/***/this
+/nor/is***this
 and this is #3 failure
 
 but \this\ is / valid\#
@@ -79,7 +80,7 @@ git-sample-3/foo/*
 
 	// define the number of good & bad patterns in the .gitignore above
 	_GITPATTERNS    = 8
-	_GITBADPATTERNS = 3
+	_GITBADPATTERNS = 4
 
 	// define the number of good & bad patterns in the match .gitignore above
 	_GITMATCHPATTERNS    = 24
@@ -96,7 +97,8 @@ var (
 	_GITBADPOSITION = []gitignore.Position{
 		gitignore.NewPosition(15, 19, 148),
 		gitignore.NewPosition(16, 14, 178),
-		gitignore.NewPosition(17, 13, 197),
+		gitignore.NewPosition(17, 8, 192),
+		gitignore.NewPosition(18, 13, 212),
 	}
 
 	// define the positions of the good patterns
@@ -108,7 +110,7 @@ var (
 		gitignore.NewPosition(10, 1, 67),
 		gitignore.NewPosition(11, 1, 91),
 		gitignore.NewPosition(13, 1, 109),
-		gitignore.NewPosition(19, 1, 209),
+		gitignore.NewPosition(20, 1, 224),
 	}
 
 	// define the token stream for the _GITIGNORE .gitignore
@@ -125,15 +127,18 @@ var (
 		{gitignore.EOL, "EOL", "\n"},
 		// 4: !*.go
 		{gitignore.NEGATION, "NEGATION", "!"},
-		{gitignore.PATTERN, "PATTERN", "*.go"},
+		{gitignore.WILDCARD, "WILDCARD", "*"},
+		{gitignore.PATTERN, "PATTERN", ".go"},
 		{gitignore.EOL, "EOL", "\n"},
 		// 5:
 		{gitignore.EOL, "EOL", "\n"},
 		// 6: *.o
-		{gitignore.PATTERN, "PATTERN", "*.o"},
+		{gitignore.WILDCARD, "WILDCARD", "*"},
+		{gitignore.PATTERN, "PATTERN", ".o"},
 		{gitignore.EOL, "EOL", "\n"},
 		// 7: *.a
-		{gitignore.PATTERN, "PATTERN", "*.a"},
+		{gitignore.WILDCARD, "WILDCARD", "*"},
+		{gitignore.PATTERN, "PATTERN", ".a"},
 		{gitignore.EOL, "EOL", "\n"},
 		// 8:
 		{gitignore.EOL, "EOL", "\n"},
@@ -203,11 +208,20 @@ var (
 		{gitignore.PATTERN, "PATTERN", "is"},
 		{gitignore.SEPARATOR, "SEPARATOR", "/"},
 		{gitignore.ANY, "ANY", "**"},
-		{gitignore.PATTERN, "PATTERN", "*"},
+		{gitignore.WILDCARD, "WILDCARD", "*"},
 		{gitignore.SEPARATOR, "SEPARATOR", "/"},
 		{gitignore.PATTERN, "PATTERN", "this"},
 		{gitignore.EOL, "EOL", "\n"},
-		// 17: and this is #3 failure
+		// 17: /nor/is***this
+		{gitignore.SEPARATOR, "SEPARATOR", "/"},
+		{gitignore.PATTERN, "PATTERN", "nor"},
+		{gitignore.SEPARATOR, "SEPARATOR", "/"},
+		{gitignore.PATTERN, "PATTERN", "is"},
+		{gitignore.ANY, "ANY", "**"},
+		{gitignore.WILDCARD, "WILDCARD", "*"},
+		{gitignore.PATTERN, "PATTERN", "this"},
+		{gitignore.EOL, "EOL", "\n"},
+		// 18: and this is #3 failure
 		{gitignore.PATTERN, "PATTERN", "and"},
 		{gitignore.WHITESPACE, "WHITESPACE", " "},
 		{gitignore.PATTERN, "PATTERN", "this"},
@@ -215,9 +229,9 @@ var (
 		{gitignore.PATTERN, "PATTERN", "is"},
 		{gitignore.WHITESPACE, "WHITESPACE", " "},
 		{gitignore.COMMENT, "COMMENT", "#3 failure\n"},
-		// 18:
+		// 19:
 		{gitignore.EOL, "EOL", "\n"},
-		// 19: but \this\ is / valid
+		// 20: but \this\ is / valid
 		{gitignore.PATTERN, "PATTERN", "but"},
 		{gitignore.WHITESPACE, "WHITESPACE", " "},
 		{gitignore.PATTERN, "PATTERN", "\\this\\ is"},

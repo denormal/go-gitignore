@@ -81,17 +81,17 @@ func (l *lexer) Next() (*Token, Error) {
 	case _WILDCARD:
 		// is the wildcard followed by another wildcard?
 		//      - does this represent the "any" token (i.e. "**")
-		_next, _err := l.read()
+		_next, _err := l.peek()
 		if _err != nil {
 			return nil, _err
 		} else if _next == _WILDCARD {
+			// we know read() will succeed here since we used peek() above
+			l.read()
 			return l.token(ANY, []rune{_WILDCARD, _WILDCARD}), nil
 		}
 
-		// otherwise we have a single wildcard, so we treat it as
-		// part of a pattern
-		l.unread(_next)
-		fallthrough
+		// otherwise, return the wildcard token
+		return l.token(WILDCARD, []rune{_r}), nil
 
 	// pattern
 	default:
@@ -331,6 +331,10 @@ func (l *lexer) pattern() ([]rune, Error) {
 		// what is the next rune?
 		switch _next {
 		// whitespace, newline, end of file, separator
+		//		- similarly for wildcard '*'
+		//		- we break at wildcard to enforce no '**' anywhere except
+		//		  at the start of a path, the end of a path, or between two
+		//		  path separators
 		case _SPACE:
 			fallthrough
 		case _TAB:
@@ -340,6 +344,8 @@ func (l *lexer) pattern() ([]rune, Error) {
 		case _NEWLINE:
 			fallthrough
 		case _SEPARATOR:
+			fallthrough
+		case _WILDCARD:
 			fallthrough
 		case _EOF:
 			// return this rune to the lexer

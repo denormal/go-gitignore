@@ -22,6 +22,7 @@ const (
 
 	PATTERN
 
+	WILDCARD
 	ANY
 
 	// this must be the last token type
@@ -69,6 +70,8 @@ func (t *Token) Name() string {
 		return "NEGATION"
 	case PATTERN:
 		return "PATTERN"
+	case WILDCARD:
+		return "WILDCARD"
 	case ANY:
 		return "ANY"
 	default:
