@@ -305,4 +305,17 @@ var (
 		{"subdir/subdir2/bar", "", false},
 		{"README.md", "README.md", true},
 	}
+
+	// define the cache tests
+	_CACHETEST = map[string]gitignore.GitIgnore{
+		"a":     null(),
+		"a/b":   null(),
+		"a/b/c": nil,
+	}
+
+	// define a set of cache keys known not to be in the cache tests above
+	_CACHEUNKNOWN = []string{
+		"b",
+		"b/c",
+	}
 )

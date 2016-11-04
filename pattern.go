@@ -237,7 +237,7 @@ func (p *pattern) any(tokens []*Token) Pattern {
 	}
 
 	// if the pattern is not anchored at the start, but does not start with a
-	// wildcard token, then add a wildcard to the sat of tokens
+	// wildcard token, then add a wildcard to the start of the set of tokens
 	//
 	// this simplifies the matching, since we can treat /fu/bar as **/fu/bar
 	if !p._anchored {
@@ -289,9 +289,9 @@ func (w *wildcard) match(path []string, tokens []*Token) bool {
 		if w.match(path, tokens[1:]) {
 			return true
 
+		} else if len(path) != 0 {
 			// attempt to match the existing tokens against the
 			// rest of the path
-		} else if len(path) != 0 {
 			return w.match(path[1:], tokens)
 		}
 
@@ -301,8 +301,7 @@ func (w *wildcard) match(path []string, tokens []*Token) bool {
 			// if the current path element matches this token,
 			// we match if the remainder of the path matches the
 			// remaining tokens
-			_path := path[0]
-			if fnmatch.Match(_token.Token(), _path, fnmatch.FNM_PATHNAME) {
+			if fnmatch.Match(_token.Token(), path[0], fnmatch.FNM_PATHNAME) {
 				return w.match(path[1:], tokens[1:])
 			}
 		}

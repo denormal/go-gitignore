@@ -1,6 +1,7 @@
 package gitignore_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -39,3 +40,8 @@ func coincident(a, b gitignore.Position) bool {
 func position(p gitignore.Position) string {
 	return fmt.Sprintf("%d:%d [%d]", p.Line, p.Column, p.Offset)
 } // position()
+
+func null() gitignore.GitIgnore {
+	// return an empty GitIgnore instance
+	return gitignore.NewGitIgnore(bytes.NewBuffer(nil), "", nil)
+} // null()
