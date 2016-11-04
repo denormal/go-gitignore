@@ -6,7 +6,7 @@ import (
 	"github.com/denormal/go-gitignore"
 )
 
-func CacheTest(t *testing.T) {
+func TestCache(t *testing.T) {
 	// populate the cache with the defined tests
 	_cache := gitignore.NewCache()
 	for _k, _v := range _CACHETEST {
@@ -35,4 +35,18 @@ func CacheTest(t *testing.T) {
 			)
 		}
 	}
-} // CacheTest()
+
+	// ensure we can update the cache
+	_ignore := null()
+	for _k, _ := range _CACHETEST {
+		_cache.Set(_k, _ignore)
+	}
+	for _k, _ := range _CACHETEST {
+		_found := _cache.Get(_k)
+		if _found != _ignore {
+			t.Errorf("cache Get() mismatch; expected %v, got %v",
+				_ignore, _found,
+			)
+		}
+	}
+} // TestCache()

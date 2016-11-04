@@ -24,11 +24,19 @@ func NewCache() Cache {
 
 // Set stores the GitIgnore ignore against its path.
 func (c *cache) Set(path string, ignore GitIgnore) {
-	if ignore != nil {
-		c._lock.Lock()
-		c._i[path] = ignore
-		c._lock.Unlock()
+	if ignore == nil {
+		return
 	}
+
+	// ensure the map is defined
+	if c._i == nil {
+		c._i = make(map[string]GitIgnore)
+	}
+
+	// set the cache item
+	c._lock.Lock()
+	c._i[path] = ignore
+	c._lock.Unlock()
 } // Set()
 
 // Get attempts to retrieve an GitIgnore instance associated with the given
