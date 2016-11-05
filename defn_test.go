@@ -122,7 +122,8 @@ var (
 		// 1:
 		{gitignore.EOL, "EOL", "\n"},
 		// 2: # example .gitignore contents
-		{gitignore.COMMENT, "COMMENT", "# example .gitignore contents\n"},
+		{gitignore.COMMENT, "COMMENT", "# example .gitignore contents"},
+		{gitignore.EOL, "EOL", "\n"},
 		// 3:
 		{gitignore.EOL, "EOL", "\n"},
 		// 4: !*.go
@@ -228,7 +229,8 @@ var (
 		{gitignore.WHITESPACE, "WHITESPACE", " "},
 		{gitignore.PATTERN, "PATTERN", "is"},
 		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.COMMENT, "COMMENT", "#3 failure\n"},
+		{gitignore.COMMENT, "COMMENT", "#3 failure"},
+		{gitignore.EOL, "EOL", "\n"},
 		// 19:
 		{gitignore.EOL, "EOL", "\n"},
 		// 20: but \this\ is / valid

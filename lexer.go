@@ -66,7 +66,7 @@ func (l *lexer) Next() (*Token, Error) {
 	// comment '#'
 	case _COMMENT:
 		l.unread(_r)
-		_rtn, _err := l.eol()
+		_rtn, _err := l.comment()
 		return l.token(COMMENT, _rtn), _err
 
 	// separator '/'
@@ -207,6 +207,36 @@ func (l *lexer) newline() {
 	l._column = 1
 	l._line++
 } // newline()
+
+// comment reads all runes until a newline or end of file is reached. An
+// error is returned if an error is encountered reading from the stream.
+func (l *lexer) comment() ([]rune, Error) {
+	_comment := make([]rune, 0)
+
+	// read until we reach end of line or end of file
+	//		- as we are in a comment, we ignore escape characters
+	for {
+		_next, _err := l.read()
+		if _err != nil {
+			return _comment, _err
+		}
+
+		// read until we have end of line or end of file
+		switch _next {
+		case _CR:
+			fallthrough
+		case _NEWLINE:
+			fallthrough
+		case _EOF:
+			// return the read run to the stream and stop
+			l.unread(_next)
+			return _comment, nil
+		}
+
+		// otherwise, add this run to the comment
+		_comment = append(_comment, _next)
+	}
+} // comment()
 
 // escape attempts to read an escape sequence (e.g. '\ ') form the input
 // stream. An error will be returned if there is an error reading from the
@@ -391,11 +421,8 @@ func (l *lexer) token(type_ TokenType, word []rune) *Token {
 	_offset := l._offset - _word
 	position := NewPosition(l._line, _column, _offset)
 
-	// if this is a newline or comment token, we adjust the line & column counts
-	switch type_ {
-	case EOL:
-		fallthrough
-	case COMMENT:
+	// if this is a newline token, we adjust the line & column counts
+	if type_ == EOL {
 		l.newline()
 	}
 

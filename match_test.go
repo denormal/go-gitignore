@@ -1,22 +1,18 @@
 package gitignore_test
 
 import (
-	"testing"
-
-	"os"
-	"path/filepath"
 	"strings"
+	"testing"
 
 	"github.com/denormal/go-gitignore"
 )
 
 func TestMatchRelative(t *testing.T) {
 	// create a temporary .gitignore
-	_file, _err := create(_GITMATCH)
+	_buffer, _err := buffer(_GITMATCH)
 	if _err != nil {
 		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
 	}
-	defer os.Remove(_file.Name())
 
 	// ensure we can run NewGitIgnore()
 	//		- ensure we encounter no errors
@@ -26,20 +22,10 @@ func TestMatchRelative(t *testing.T) {
 		return true
 	}
 
-	_dir := filepath.Dir(_file.Name())
-	_ignore := gitignore.NewGitIgnore(_file, _dir, _error)
-
 	// ensure we have a non-nil GitIgnore instance
+	_ignore := gitignore.NewGitIgnore(_buffer, "", _error)
 	if _ignore == nil {
 		t.Error("expected non-nil GitIgnore instance; nil found")
-	}
-
-	// ensure the base of the ignore is the directory of the temporary file
-	if _ignore.Base() != _dir {
-		t.Errorf(
-			"gitignore.Base() mismatch; expected %q, got %q",
-			_dir, _ignore.Base(),
-		)
 	}
 
 	// ensure we encountered the right number of errors

@@ -11,7 +11,7 @@ import (
 
 func TestNewGitIgnoreFile(t *testing.T) {
 	// create a temporary .gitignore
-	_file, _err := create(_GITIGNORE)
+	_file, _err := file(_GITIGNORE)
 	if _err != nil {
 		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
 	}
@@ -40,7 +40,7 @@ func TestNewGitIgnoreFile(t *testing.T) {
 
 func TestNewGitIgnore(t *testing.T) {
 	// create a temporary .gitignore
-	_file, _err := create(_GITIGNORE)
+	_file, _err := file(_GITIGNORE)
 	if _err != nil {
 		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
 	}

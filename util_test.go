@@ -10,7 +10,7 @@ import (
 	"github.com/denormal/go-gitignore"
 )
 
-func create(content string) (*os.File, error) {
+func file(content string) (*os.File, error) {
 	// create a temporary file
 	_file, _err := ioutil.TempFile("", "gitignore")
 	if _err != nil {
@@ -31,7 +31,7 @@ func create(content string) (*os.File, error) {
 
 	// we have a temporary file containing the .gitignore
 	return _file, nil
-} // create()
+} // file()
 
 func coincident(a, b gitignore.Position) bool {
 	return a.Line == b.Line && a.Column == b.Column && a.Offset == b.Offset
@@ -40,6 +40,11 @@ func coincident(a, b gitignore.Position) bool {
 func position(p gitignore.Position) string {
 	return fmt.Sprintf("%d:%d [%d]", p.Line, p.Column, p.Offset)
 } // position()
+
+func buffer(content string) (*bytes.Buffer, error) {
+	// return a buffered .gitignore
+	return bytes.NewBufferString(content), nil
+} // buffer()
 
 func null() gitignore.GitIgnore {
 	// return an empty GitIgnore instance

@@ -1,10 +1,8 @@
 package gitignore_test
 
 import (
-	"testing"
-
-	"os"
 	"strings"
+	"testing"
 
 	"github.com/denormal/go-gitignore"
 )
@@ -12,11 +10,10 @@ import (
 // TestParser tests the behaviour of gitignore.Parser
 func TestParser(t *testing.T) {
 	// create a temporary .gitignore
-	_file, _err := create(_GITIGNORE)
+	_buffer, _err := buffer(_GITIGNORE)
 	if _err != nil {
 		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
 	}
-	defer os.Remove(_file.Name())
 
 	// ensure we can run NewGitIgnore()
 	//		- ensure we encounter 2 errors
@@ -27,7 +24,7 @@ func TestParser(t *testing.T) {
 	}
 
 	// ensure we have a non-nil Parser instance
-	_parser := gitignore.NewParser(_file, _error)
+	_parser := gitignore.NewParser(_buffer, _error)
 	if _parser == nil {
 		t.Error("expected non-nil Parser instance; nil found")
 	}
@@ -98,11 +95,10 @@ func TestParser(t *testing.T) {
 // handler that returns false on receiving and error
 func TestParserError(t *testing.T) {
 	// create a temporary .gitignore
-	_file, _err := create(_GITIGNORE)
+	_buffer, _err := buffer(_GITIGNORE)
 	if _err != nil {
 		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
 	}
-	defer os.Remove(_file.Name())
 
 	// ensure we can run NewGitIgnore()
 	//		- ensure we encounter 2 errors
@@ -113,7 +109,7 @@ func TestParserError(t *testing.T) {
 	}
 
 	// ensure we have a non-nil Parser instance
-	_parser := gitignore.NewParser(_file, _error)
+	_parser := gitignore.NewParser(_buffer, _error)
 	if _parser == nil {
 		t.Error("expected non-nil Parser instance; nil found")
 	}
