@@ -9,7 +9,7 @@ import (
 	"github.com/denormal/go-gitignore"
 )
 
-func TestNewGitIgnoreFile(t *testing.T) {
+func TestNewFromFile(t *testing.T) {
 	// create a temporary .gitignore
 	_file, _err := file(_GITIGNORE)
 	if _err != nil {
@@ -17,8 +17,8 @@ func TestNewGitIgnoreFile(t *testing.T) {
 	}
 	defer os.Remove(_file.Name())
 
-	// ensure we can run NewGitIgnoreFile()
-	_ignore, _err := gitignore.NewGitIgnoreFile(_file.Name())
+	// ensure we can run NewFromFile()
+	_ignore, _err := gitignore.NewFromFile(_file.Name())
 	if _err != nil {
 		t.Fatalf("unable to open temporary .gitignore: %s", _err.Error())
 	}
@@ -36,9 +36,66 @@ func TestNewGitIgnoreFile(t *testing.T) {
 			_dir, _ignore.Base(),
 		)
 	}
-} // TestNewGitIgnoreFile()
+} // TestNewFromFile()
 
-func TestNewGitIgnore(t *testing.T) {
+func TestNewWithCache(t *testing.T) {
+	// create a cache for this test
+	_cache := gitignore.NewCache()
+
+	// create a temporary .gitignore
+	_file, _err := file(_GITIGNORE)
+	if _err != nil {
+		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
+	}
+	defer os.Remove(_file.Name())
+
+	//  ensure we can run NewFromFile()
+	_ignore, _err := gitignore.NewFromFile(_file.Name())
+	if _err != nil {
+		t.Fatalf("unable to open temporary .gitignore: %s", _err.Error())
+	}
+
+	// ensure we have a non-nil GitIgnore instance
+	if _ignore == nil {
+		t.Error("expected non-nil GitIgnore instance; nil found")
+	}
+
+	// store the GitIgnore in the cache
+	_cache.Set(_file.Name(), _ignore)
+
+	// remove the .gitignore file from disk
+	_err = os.Remove(_file.Name())
+	if _err != nil {
+		t.Errorf("unable to remove temporary .gitignore: %s", _err.Error())
+	}
+
+	// attempt to create this .gitignore again, but this time using the cache
+	//		- ensure the retrieved GitIgnore matches the stored instance
+	_new, _err := gitignore.NewWithCache(_file.Name(), _cache)
+	if _err != nil {
+		t.Errorf(
+			"unexpected error retrieving cached .gitignore: %s", _err.Error(),
+		)
+		return
+	} else if _new != _ignore {
+		t.Errorf(
+			"gitignore.NewWithCache() mismatch; expected %v, got %v",
+			_ignore, _new,
+		)
+		return
+	}
+
+	// ensure the base of the ignore is the directory of the temporary file
+	_dir := filepath.Dir(_file.Name())
+	if _new.Base() != _dir {
+		t.Errorf(
+			"gitignore.Base() mismatch; expected %q, got %q",
+			_dir, _new.Base(),
+		)
+	}
+} // TestNewWithCache()
+
+func TestNew(t *testing.T) {
 	// create a temporary .gitignore
 	_file, _err := file(_GITIGNORE)
 	if _err != nil {
@@ -55,7 +112,7 @@ func TestNewGitIgnore(t *testing.T) {
 	}
 
 	_dir := filepath.Dir(_file.Name())
-	_ignore := gitignore.NewGitIgnore(_file, _dir, _error)
+	_ignore := gitignore.New(_file, _dir, _error)
 
 	// ensure we have a non-nil GitIgnore instance
 	if _ignore == nil {
@@ -90,4 +147,4 @@ func TestNewGitIgnore(t *testing.T) {
 			}
 		}
 	}
-} // TestNewGitIgnore()
+} // TestNew()

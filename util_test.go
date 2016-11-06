@@ -110,5 +110,5 @@ func buffer(content string) (*bytes.Buffer, error) {
 
 func null() gitignore.GitIgnore {
 	// return an empty GitIgnore instance
-	return gitignore.NewGitIgnore(bytes.NewBuffer(nil), "", nil)
+	return gitignore.New(bytes.NewBuffer(nil), "", nil)
 } // null()

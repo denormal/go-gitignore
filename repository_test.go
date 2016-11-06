@@ -8,7 +8,7 @@ import (
 	"github.com/denormal/go-gitignore"
 )
 
-func TestProject(t *testing.T) {
+func TestRepository(t *testing.T) {
 	// create a temporary directory populated with sample .gitignore files
 	//		- first, augment the test data to include file names
 	_map := make(map[string]string)
@@ -23,7 +23,7 @@ func TestProject(t *testing.T) {
 	defer os.RemoveAll(_dir)
 
 	// create the project
-	_project, _err := gitignore.NewProject(_dir, "")
+	_project, _err := gitignore.NewRepository(_dir, "")
 	if _err != nil {
 		t.Fatalf("unable to create gitignore project: %s", _err.Error())
 	}
@@ -50,9 +50,9 @@ func TestProject(t *testing.T) {
 	for _, _test := range _PROJECTMATCHES {
 		match(t, _project, "", _test)
 	}
-} // TestProject()
+} // TestRepository()
 
-func TestProjectCached(t *testing.T) {
+func TestRepositoryWithCache(t *testing.T) {
 	// create a temporary directory for this test
 	_dir, _err := dir(nil)
 	if _err != nil {
@@ -69,7 +69,7 @@ func TestProjectCached(t *testing.T) {
 		}
 
 		// create the GitIgnore instance
-		_ignore := gitignore.NewGitIgnore(_buffer, _dir, nil)
+		_ignore := gitignore.New(_buffer, _dir, nil)
 
 		// store the GitIgnore against the absolute path
 		//		- TODO: handle Windows paths
@@ -78,7 +78,7 @@ func TestProjectCached(t *testing.T) {
 	}
 
 	// create the git project
-	_project, _err := gitignore.NewProjectCached(_dir, "", _cache)
+	_project, _err := gitignore.NewRepositoryWithCache(_dir, "", _cache)
 	if _err != nil {
 		t.Fatalf("unable to create cached project: %s", _err.Error())
 	}
@@ -105,4 +105,4 @@ func TestProjectCached(t *testing.T) {
 	for _, _test := range _PROJECTMATCHES {
 		match(t, _project, "", _test)
 	}
-} // TestProjectCached()
+} // TestRepositoryWithCache()

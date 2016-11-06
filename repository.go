@@ -9,25 +9,17 @@ import (
 
 const File = ".gitignore"
 
-type project struct {
+type repository struct {
 	ignore
 	_cache Cache
 	_file  string
-} // project{}
+} // repository{}
 
-func NewGitProject(base string) (GitIgnore, error) {
-	return NewProject(base, File)
-} // NewGitProject()
+func NewRepository(base, file string) (GitIgnore, error) {
+	return NewRepositoryWithCache(base, file, nil)
+} // NewRepository()
 
-func NewGitProjectCached(base string, cache Cache) (GitIgnore, error) {
-	return NewProjectCached(base, File, cache)
-} // NewGitProjectCached()
-
-func NewProject(base, file string) (GitIgnore, error) {
-	return NewProjectCached(base, file, nil)
-} // NewProject()
-
-func NewProjectCached(base, file string, cache Cache) (GitIgnore, error) {
+func NewRepositoryWithCache(base, file string, cache Cache) (GitIgnore, error) {
 	// if the cache is not given, then use the default global cache
 	if cache == nil {
 		cache = global
@@ -52,15 +44,15 @@ func NewProjectCached(base, file string, cache Cache) (GitIgnore, error) {
 		file = File
 	}
 
-	// return the project instance
+	// return the repository instance
 	_ignore := ignore{_base: _base}
-	return &project{ignore: _ignore, _cache: cache, _file: file}, nil
-} // NewProjectCached()
+	return &repository{ignore: _ignore, _cache: cache, _file: file}, nil
+} // NewRepositoryWithCache()
 
-// Absolute attempts to match an absolute path against this project. If the
-// path is not located under the base directory of this project, or is not
-// matched by this project, nil is returned.
-func (p *project) Absolute(path string, isdir bool) Match {
+// Absolute attempts to match an absolute path against this repository. If the
+// path is not located under the base directory of this repository, or is not
+// matched by this repository, nil is returned.
+func (p *repository) Absolute(path string, isdir bool) Match {
 	// does the file share the same directory as this ignore file?
 	if !strings.HasPrefix(path, p.Base()) {
 		return nil
@@ -72,26 +64,26 @@ func (p *project) Absolute(path string, isdir bool) Match {
 	return p.Relative(_rel, isdir)
 } // Absolute()
 
-// Relative attempts to match a path relative to the project base directory.
-// If the path is not matched by the project, nil is returned.
-func (p *project) Relative(path string, isdir bool) Match {
+// Relative attempts to match a path relative to the repository base directory.
+// If the path is not matched by the repository, nil is returned.
+func (p *repository) Relative(path string, isdir bool) Match {
 	// if we are on Windows, then translate the path to Unix form
 	_rel := path
 	if runtime.GOOS == "windows" {
 		_rel = filepath.ToSlash(_rel)
 	}
 
-	// project matching:
+	// repository matching:
 	//		- a child path cannot be considered if its parent is ignored
 	//		- a .gitignore in a lower directory overrides a .gitignore in a
 	//		  higher directory
 
 	// matching algorithm:
-	//		- descend from the project base to the path parent attempting
+	//		- descend from the repository base to the path parent attempting
 	//		  to match the descendant path (e.g. a, a/b, a/b/c, ...)
 	//		- if the descendant path is ignored, then the path is ignored
 	//		- otherwise, attempt to match from the path tail (e.g. the file
-	//		  name), up to the project base (i.e. the full, relative path),
+	//		  name), up to the repository base (i.e. the full, relative path),
 	//		  and if the path is matched, return the match
 
 	// extract the directory components of the path
@@ -115,7 +107,7 @@ func (p *project) Relative(path string, isdir bool) Match {
 	return p.up(_path[_length-1], _path[:_length-1], isdir)
 } // Relative()
 
-func (p *project) down(path string, remaining []string) Match {
+func (p *repository) down(path string, remaining []string) Match {
 	// if we have no remaining path elements, we cannot descend further
 	if len(remaining) == 0 {
 		return nil
@@ -124,7 +116,7 @@ func (p *project) down(path string, remaining []string) Match {
 	// attempt to load the .gitignore in the parent directory
 	//		- the parent is given relative to the base
 	_file := filepath.Join(path, p._file)
-	_ignore, _err := NewGitIgnoreCached(_file, p._cache)
+	_ignore, _err := NewWithCache(_file, p._cache)
 	if _err != nil {
 		if !os.IsNotExist(_err) {
 			// TODO: can we do better?
@@ -152,12 +144,12 @@ func (p *project) down(path string, remaining []string) Match {
 	return p.down(_path, remaining[1:])
 } // down()
 
-func (p *project) up(path string, remaining []string, isdir bool) Match {
+func (p *repository) up(path string, remaining []string, isdir bool) Match {
 	// attempt to load the .gitignore in the parent directory
 	//		- the parent is given relative to the base
 	_remaining := filepath.Join(remaining...)
 	_file := filepath.Join(p._base, _remaining, p._file)
-	_ignore, _err := NewGitIgnoreCached(_file, p._cache)
+	_ignore, _err := NewWithCache(_file, p._cache)
 	if _err != nil {
 		if !os.IsNotExist(_err) {
 			// TODO: can we do better?

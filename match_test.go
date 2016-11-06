@@ -15,7 +15,7 @@ func TestMatchAbsolute(t *testing.T) {
 		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
 	}
 
-	// ensure we can run NewGitIgnore()
+	// ensure we can run New()
 	//		- ensure we encounter no errors
 	_position := []gitignore.Position{}
 	_error := func(e gitignore.Error) bool {
@@ -24,7 +24,7 @@ func TestMatchAbsolute(t *testing.T) {
 	}
 
 	// ensure we have a non-nil GitIgnore instance
-	_ignore := gitignore.NewGitIgnore(_buffer, _GITBASE, _error)
+	_ignore := gitignore.New(_buffer, _GITBASE, _error)
 	if _ignore == nil {
 		t.Error("expected non-nil GitIgnore instance; nil found")
 	}
@@ -50,7 +50,7 @@ func TestMatchRelative(t *testing.T) {
 		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
 	}
 
-	// ensure we can run NewGitIgnore()
+	// ensure we can run New()
 	//		- ensure we encounter no errors
 	_position := []gitignore.Position{}
 	_error := func(e gitignore.Error) bool {
@@ -59,7 +59,7 @@ func TestMatchRelative(t *testing.T) {
 	}
 
 	// ensure we have a non-nil GitIgnore instance
-	_ignore := gitignore.NewGitIgnore(_buffer, _GITBASE, _error)
+	_ignore := gitignore.New(_buffer, _GITBASE, _error)
 	if _ignore == nil {
 		t.Error("expected non-nil GitIgnore instance; nil found")
 	}
