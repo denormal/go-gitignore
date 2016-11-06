@@ -4,8 +4,13 @@ import (
 	"github.com/denormal/go-gitignore"
 )
 
-// define the constants for the unit tests
+type test struct {
+	Path    string // test path
+	Pattern string // matching pattern (if any)
+	Ignore  bool   // whether the path is ignored or included
+} // test{}
 
+// define the constants for the unit tests
 const (
 	// define the example .gitignore file contents
 	_GITIGNORE = `
@@ -90,6 +95,12 @@ git-sample-3/foo/*
 	// gitignore.Parser error handler returns false upon receiving an error
 	_GITPATTERNSFALSE    = 7
 	_GITBADPATTERNSFALSE = 1
+
+	// define the base path for a git repository
+	_GITBASE = "/my/git/repository"
+
+	// define the directory mask for any directories created during testing
+	_GITMASK = 0700
 )
 
 var (
@@ -247,11 +258,7 @@ var (
 	}
 
 	// define match tests and their expected results
-	_GITMATCHES = []struct {
-		Path    string // test path
-		Pattern string // matching pattern (if any)
-		Ignore  bool   // whether the path is ignored or included
-	}{
+	_GITMATCHES = []test{
 		{"!important!.txt", "\\!important!.txt", true},
 		{"arch/", "", false},
 		{"arch/foo/", "", false},
@@ -319,5 +326,48 @@ var (
 	_CACHEUNKNOWN = []string{
 		"b",
 		"b/c",
+	}
+
+	// define the set of .gitignore files for a project
+	_GITPROJECT = map[string]string{
+		// define the top-level .gitignore file
+		"": `
+# ignore .bak files
+*.bak
+`,
+		// define subdirectory .gitignore files
+		"a": `
+# ignore .go files
+*.go
+
+# ignore every c directory
+#	- this should be the same as c/
+**/c/
+`,
+		"a/b": `
+# include .go files in this directory
+!*.go
+`,
+	}
+
+	// define project match tests and their expected results
+	_PROJECTMATCHES = []test{
+		{"include.go", "", false},
+		{"ignore.go.bak", "*.bak", true},
+		{"a/ignore.go", "*.go", true},
+		{"a/ignore.go.bak", "*.bak", true},
+		{"a/include.sh", "", false},
+		{"a/c/ignore.go", "**/c/", true},
+		{"a/c/ignore.go.bak", "**/c/", true},
+		{"a/c/ignore.sh", "**/c/", true},
+		{"a/c/", "**/c/", true},
+		{"a/b/c/d/ignore.go", "**/c/", true},
+		{"a/b/c/d/ignore.go.bak", "**/c/", true},
+		{"a/b/c/d/ignore.sh", "**/c/", true},
+		{"a/b/c/d/", "**/c/", true},
+		{"a/b/c/", "**/c/", true},
+		{"a/b/include.go", "!*.go", false},
+		{"a/b/ignore.go.bak", "*.bak", true},
+		{"a/b/include.sh", "", false},
 	}
 )

@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// use an empty GitIgnore for cached lookups
+var empty = &ignore{}
+
 // GitIgnore is the interface to .gitignore files. It provides methods for
 // testing files for matching the .gitignore file, and then determining
 // whether a file should be ignored or included.
@@ -68,7 +71,9 @@ func NewGitIgnoreFile(file string) (GitIgnore, error) {
 //
 // If NewGitIgnoreFile returns an error, NewGitIgnoreCached will store an empty
 // GitIgnore (i.e. no patterns) against the file to prevent repeated parse
-// attempts on subsequent requests for the same file.
+// attempts on subsequent requests for the same file. Subsequent calls to
+// NewGitIgnoreCached for a file that could not be loaded due to an error will
+// return nil.
 func NewGitIgnoreCached(file string, cache Cache) (GitIgnore, error) {
 	// if we haven't been given a cache, use the default cache
 	if cache == nil {
@@ -82,18 +87,22 @@ func NewGitIgnoreCached(file string, cache Cache) (GitIgnore, error) {
 	}
 
 	_ignore := cache.Get(_abs)
-	if _ignore != nil {
+	if _ignore == nil {
 		_ignore, _err = NewGitIgnoreFile(file)
 		if _ignore == nil {
 			// if the load failed, cache an empty GitIgnore to prevent
 			// further attempts to load this file
-			_ignore = &ignore{}
+			_ignore = empty
 		}
 		cache.Set(_abs, _ignore)
 	}
 
 	// return the ignore (if we have it)
-	return _ignore, _err
+	if _ignore == empty {
+		return nil, _err
+	} else {
+		return _ignore, _err
+	}
 } // NewGitIgnoreCached()
 
 // Base returns the directory containing the .gitignore file for this GitIgnore.

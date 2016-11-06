@@ -17,4 +17,7 @@ var (
 	NegationError       = errors.New("unexpected negation '!'")
 	CommentError        = errors.New("unexpected comment '#'")
 	InvalidPatternError = errors.New("invalid pattern")
+
+	// define the standard project errors
+	InvalidDirectoryError = errors.New("invalid directory")
 )
