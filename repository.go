@@ -3,7 +3,6 @@ package gitignore
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -67,10 +66,10 @@ func (p *repository) Absolute(path string, isdir bool) Match {
 // Relative attempts to match a path relative to the repository base directory.
 // If the path is not matched by the repository, nil is returned.
 func (p *repository) Relative(path string, isdir bool) Match {
-	// if we are on Windows, then translate the path to Unix form
-	_rel := path
-	if runtime.GOOS == "windows" {
-		_rel = filepath.ToSlash(_rel)
+	// if there's no path, then there's nothing to match
+	_path := filepath.Clean(path)
+	if _path == "." {
+		return nil
 	}
 
 	// repository matching:
@@ -78,98 +77,48 @@ func (p *repository) Relative(path string, isdir bool) Match {
 	//		- a .gitignore in a lower directory overrides a .gitignore in a
 	//		  higher directory
 
-	// matching algorithm:
-	//		- descend from the repository base to the path parent attempting
-	//		  to match the descendant path (e.g. a, a/b, a/b/c, ...)
-	//		- if the descendant path is ignored, then the path is ignored
-	//		- otherwise, attempt to match from the path tail (e.g. the file
-	//		  name), up to the repository base (i.e. the full, relative path),
-	//		  and if the path is matched, return the match
-
-	// extract the directory components of the path
-	_path := strings.Split(_rel, string(_SEPARATOR))
-	_length := len(_path)
-	if _length > 1 {
-		// we have at least one directory component, so attempt to match
-		// the ancestral path
-		_parent := _path[:_length-1]
-		_match := p.down(p._base, _parent)
-
-		// if the parent directory is ignored, then the path is ignored
-		if _match != nil {
-			if _match.Ignore() {
-				return _match
-			}
-		}
-	}
-
-	// otherwise, we attempt to match from the file, up the parent directories
-	return p.up(_path[_length-1], _path[:_length-1], isdir)
-} // Relative()
-
-func (p *repository) down(path string, remaining []string) Match {
-	// if we have no remaining path elements, we cannot descend further
-	if len(remaining) == 0 {
-		return nil
-	}
-
-	// attempt to load the .gitignore in the parent directory
-	//		- the parent is given relative to the base
-	_file := filepath.Join(path, p._file)
-	_ignore, _err := NewWithCache(_file, p._cache)
-	if _err != nil {
-		if !os.IsNotExist(_err) {
-			// TODO: can we do better?
-			panic(_err)
-		}
-	} else if _ignore != nil {
-		// does the remaining path match?
-		//		- we are only matching directories
-		//		- we match iteratively, starting with the first remaining
-		//		  component, and then adding others, to mimic traversing
-		//		  down the remaining path
-		for _i := 1; _i <= len(remaining); _i++ {
-			_remaining := filepath.Join(remaining[:_i]...)
-			_match := _ignore.Relative(_remaining, true)
-			if _match != nil {
-				if _match.Ignore() {
-					return _match
-				}
-			}
-		}
-	}
-
-	// descend the directory tree
-	_path := filepath.Join(path, remaining[0])
-	return p.down(_path, remaining[1:])
-} // down()
-
-func (p *repository) up(path string, remaining []string, isdir bool) Match {
-	// attempt to load the .gitignore in the parent directory
-	//		- the parent is given relative to the base
-	_remaining := filepath.Join(remaining...)
-	_file := filepath.Join(p._base, _remaining, p._file)
-	_ignore, _err := NewWithCache(_file, p._cache)
-	if _err != nil {
-		if !os.IsNotExist(_err) {
-			// TODO: can we do better?
-			panic(_err)
-		}
-	} else if _ignore != nil {
-		// does this path match?
-		_match := _ignore.Relative(path, isdir)
-		if _match != nil {
+	// first, is the parent directory ignored?
+	//		- extract the parent directory from the current path
+	_parent, _local := filepath.Split(_path)
+	_match := p.Relative(_parent, true)
+	if _match != nil {
+		if _match.Ignore() {
 			return _match
 		}
 	}
 
-	// if we have no remaining path elements, we cannot ascend
-	if len(remaining) == 0 {
-		return nil
-	}
+	// the parent directory isn't ignored, so we now look at the original path
+	//		- we consider .gitignore files in the current directory first, then
+	//		  move up the path hierarchy
+	var _last string
+	for {
+		_file := filepath.Join(p._base, _parent, p._file)
+		_ignore, _err := NewWithCache(_file, p._cache)
+		if _err != nil {
+			if !os.IsNotExist(_err) {
+				// TODO: can we do better?
+				panic(_err)
+			}
+		} else if _ignore != nil {
+			_match := _ignore.Relative(_local, isdir)
+			if _match != nil {
+				return _match
+			}
+		}
 
-	// ascend the directory tree
-	_last := len(remaining) - 1
-	_path := filepath.Join(remaining[_last], path)
-	return p.up(_path, remaining[:_last], isdir)
-} // up()
+		// if there's no parent, then we're done
+		//		- since we use filepath.Clean() we look for "."
+		if _parent == "." {
+			return nil
+		}
+
+		// we don't have a match for this file, so we progress up the
+		// path hierarchy
+		//		- we are manually building _local using the .gitignore
+		//		  separator "/", which is how we handle operating system
+		//		  file system differences
+		_parent, _last = filepath.Split(_parent)
+		_parent = filepath.Clean(_parent)
+		_local = _last + string(_SEPARATOR) + _local
+	}
+} // Relative()

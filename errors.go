@@ -18,6 +18,6 @@ var (
 	CommentError        = errors.New("unexpected comment '#'")
 	InvalidPatternError = errors.New("invalid pattern")
 
-	// define the standard project errors
+	// define the standard repository errors
 	InvalidDirectoryError = errors.New("invalid directory")
 )

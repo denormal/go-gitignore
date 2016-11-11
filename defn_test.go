@@ -328,8 +328,8 @@ var (
 		"b/c",
 	}
 
-	// define the set of .gitignore files for a project
-	_GITPROJECT = map[string]string{
+	// define the set of .gitignore files for a repository
+	_GITREPOSITORY = map[string]string{
 		// define the top-level .gitignore file
 		"": `
 # ignore .bak files
@@ -348,10 +348,14 @@ var (
 # include .go files in this directory
 !*.go
 `,
+		"a/b/d": `
+# include c directories
+!c/
+`,
 	}
 
-	// define project match tests and their expected results
-	_PROJECTMATCHES = []test{
+	// define repository match tests and their expected results
+	_REPOSITORYMATCHES = []test{
 		{"include.go", "", false},
 		{"ignore.go.bak", "*.bak", true},
 		{"a/ignore.go", "*.go", true},
@@ -369,5 +373,12 @@ var (
 		{"a/b/include.go", "!*.go", false},
 		{"a/b/ignore.go.bak", "*.bak", true},
 		{"a/b/include.sh", "", false},
+		{"a/b/d/include.go", "!*.go", false},
+		{"a/b/d/ignore.go.bak", "*.bak", true},
+		{"a/b/d/include.sh", "", false},
+		{"a/b/d/c/", "!c/", false},
+		{"a/b/d/c/include.go", "!*.go", false},
+		{"a/b/d/c/ignore.go.bak", "*.bak", true},
+		{"a/b/d/c/include.sh", "", false},
 	}
 )
