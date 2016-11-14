@@ -38,3 +38,8 @@ func (p Position) String() string {
 		return fmt.Sprintf("%s%d:%d", _prefix, p.Line, p.Column)
 	}
 } // String()
+
+// Zero returns true if the Position represents the zero Position
+func (p Position) Zero() bool {
+	return p.Line+p.Column+p.Offset == 0
+} // Zero()

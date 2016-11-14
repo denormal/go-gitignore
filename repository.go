@@ -1,7 +1,6 @@
 package gitignore
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,27 +10,72 @@ const File = ".gitignore"
 
 type repository struct {
 	ignore
-	_cache Cache
-	_file  string
+	_errors func(e Error) bool
+	_cache  Cache
+	_file   string
 } // repository{}
 
-func NewRepository(base, file string) (GitIgnore, error) {
-	return NewRepositoryWithCache(base, file, NewCache())
+func NewRepository(base string) (GitIgnore, error) {
+	return NewRepositoryWithFile(base, File)
 } // NewRepository()
 
-func NewRepositoryWithCache(base, file string, cache Cache) (GitIgnore, error) {
+func NewRepositoryWithFile(base, file string) (GitIgnore, error) {
+	// define an error handler to catch any file access errors
+	//		- record the first encountered error
+	var _error Error
+	_errors := func(e Error) bool {
+		if _error == nil {
+			_error = e
+		}
+		return true
+	}
+
+	// attempt to retrieve the repository represented by this file
+	_repository := NewRepositoryWithErrors(base, file, _errors)
+
+	// did we encounter an error?
+	//		- if the error has a zero Position then it was encountered
+	//		  before parsing was attempted, so we return that error
+	if _error != nil {
+		if _error.Position().Zero() {
+			return nil, _error.Underlying()
+		}
+	}
+
+	// otherwise, we ignore the parser errors
+	return _repository, nil
+
+	//return NewRepositoryWithErrors(base, file, nil)
+} // NewRepositoryWithFile()
+
+func NewRepositoryWithErrors(base, file string, errors func(e Error) bool) GitIgnore {
+	return NewRepositoryWithCache(base, file, NewCache(), errors)
+} // NewRepositoryWithErrors()
+
+func NewRepositoryWithCache(base, file string, cache Cache, errors func(e Error) bool) GitIgnore {
+	// do we have an error handler?
+	_errors := errors
+	if _errors == nil {
+		_errors = func(e Error) bool { return true }
+	}
+
 	// extract the absolute path of the base directory
 	_base, _err := filepath.Abs(base)
 	if _err != nil {
-		return nil, _err
+		_errors(NewError(_err, Position{}))
+		return nil
 	}
 
 	// ensure the given base is a directory
 	_info, _err := os.Stat(_base)
+	if _info != nil {
+		if !_info.IsDir() {
+			_err = InvalidDirectoryError
+		}
+	}
 	if _err != nil {
-		return nil, _err
-	} else if !_info.IsDir() {
-		return nil, InvalidDirectoryError
+		_errors(NewError(_err, Position{}))
+		return nil
 	}
 
 	// if we haven't been given a base file name, use the default
@@ -39,9 +83,16 @@ func NewRepositoryWithCache(base, file string, cache Cache) (GitIgnore, error) {
 		file = File
 	}
 
-	// return the repository instance
+	// create the repository instance
 	_ignore := ignore{_base: _base}
-	return &repository{ignore: _ignore, _cache: cache, _file: file}, nil
+	_repository := &repository{
+		ignore:  _ignore,
+		_errors: _errors,
+		_cache:  cache,
+		_file:   file,
+	}
+
+	return _repository
 } // NewRepositoryWithCache()
 
 // Match attempts to match the path against this repository. If the path is
@@ -49,22 +100,24 @@ func NewRepositoryWithCache(base, file string, cache Cache) (GitIgnore, error) {
 // return an error if its not possible to determine the absolute path of the
 // given path, or if its not possible to determine if the path represents a
 // file or a directory.
-func (r *repository) Match(path string) (Match, error) {
+func (r *repository) Match(path string) Match {
 	// ensure we have the absolute path for the given file
 	_path, _err := filepath.Abs(path)
 	if _err != nil {
-		return nil, _err
+		r._errors(NewError(_err, Position{}))
+		return nil
 	}
 
 	// is the path a file or a directory?
 	_info, _err := os.Stat(_path)
 	if _err != nil {
-		return nil, _err
+		r._errors(NewError(_err, Position{}))
+		return nil
 	}
 	_isdir := _info.IsDir()
 
 	// attempt to match the absolute path
-	return r.Absolute(_path, _isdir), nil
+	return r.Absolute(_path, _isdir)
 } // Match()
 
 // Absolute attempts to match an absolute path against this repository. If the
@@ -105,6 +158,7 @@ func (r *repository) Relative(path string, isdir bool) Match {
 			return _match
 		}
 	}
+	_parent = filepath.Clean(_parent)
 
 	// the parent directory isn't ignored, so we now look at the original path
 	//		- we consider .gitignore files in the current directory first, then
@@ -112,13 +166,8 @@ func (r *repository) Relative(path string, isdir bool) Match {
 	var _last string
 	for {
 		_file := filepath.Join(r._base, _parent, r._file)
-		_ignore, _err := NewWithCache(_file, r._cache, nil)
-		if _err != nil {
-			if !os.IsNotExist(_err) {
-				// TODO: can we do better?
-				panic(errors.New(_file + ": " + _err.Error()))
-			}
-		} else if _ignore != nil {
+		_ignore := NewWithCache(_file, r._cache, r._errors)
+		if _ignore != nil {
 			_match := _ignore.Relative(_local, isdir)
 			if _match != nil {
 				return _match

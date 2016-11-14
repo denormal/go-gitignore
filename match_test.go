@@ -19,14 +19,7 @@ func TestMatch(t *testing.T) {
 	//		- first we test absolute paths
 	_cb := func(path string, isdir bool) gitignore.Match {
 		_path := filepath.Join(_dir, path)
-		_match, _err := _ignore.Match(_path)
-		if _err != nil {
-			t.Errorf(
-				"unexpected Match() error for %s: %s",
-				_path, _err.Error(),
-			)
-		}
-		return _match
+		return _ignore.Match(_path)
 	}
 	for _, _test := range _GITMATCHES {
 		do(t, _cb, _test)
@@ -46,14 +39,7 @@ func TestMatch(t *testing.T) {
 
 	// perform the relative path tests
 	_cb = func(path string, isdir bool) gitignore.Match {
-		_match, _err := _ignore.Match(path)
-		if _err != nil {
-			t.Errorf(
-				"unexpected Match() error for %s: %s",
-				path, _err.Error(),
-			)
-		}
-		return _match
+		return _ignore.Match(path)
 	}
 	for _, _test := range _GITMATCHES {
 		do(t, _cb, _test)
@@ -66,10 +52,8 @@ func TestMatch(t *testing.T) {
 
 	for _, _test := range _GITMATCHES {
 		_path := filepath.Join(_new, _test.Local())
-		_match, _err := _ignore.Match(_path)
-		if _err != nil {
-			t.Fatalf("unexpected Match() error: %s", _err.Error())
-		} else if _match != nil {
+		_match := _ignore.Match(_path)
+		if _match != nil {
 			t.Fatalf("unexpected match; expected nil, got %v", _match)
 		}
 	}
@@ -101,10 +85,8 @@ func TestMatch(t *testing.T) {
 
 	// now perform the match tests and ensure an error is returned
 	for _, _test := range _GITMATCHES {
-		_match, _err := _ignore.Match(_test.Local())
-		if _err == nil {
-			t.Fatal("expected Match() error; non found")
-		} else if _match != nil {
+		_match := _ignore.Match(_test.Local())
+		if _match != nil {
 			t.Fatalf("unexpected match; expected nil, got %v", _match)
 		}
 	}
@@ -269,10 +251,8 @@ func TestMatchAbsolute(t *testing.T) {
 
 	for _, _test := range _GITMATCHES {
 		_path := filepath.Join(_new, _test.Local())
-		_match, _err := _ignore.Match(_path)
-		if _err != nil {
-			t.Fatalf("unexpected Match() error: %s", _err.Error())
-		} else if _match != nil {
+		_match := _ignore.Match(_path)
+		if _match != nil {
 			t.Fatalf("unexpected match; expected nil, got %v", _match)
 		}
 	}
@@ -383,7 +363,6 @@ func directory(t *testing.T) (string, gitignore.GitIgnore) {
 	if _err != nil {
 		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
 	}
-	//	defer os.RemoveAll(_dir)
 
 	// ensure we can run New()
 	//		- ensure we encounter no errors
@@ -395,10 +374,8 @@ func directory(t *testing.T) (string, gitignore.GitIgnore) {
 
 	// ensure we have a non-nil GitIgnore instance
 	_file := filepath.Join(_dir, gitignore.File)
-	_ignore, _err := gitignore.NewFromFile(_file, _error)
-	if _err != nil {
-		t.Fatalf("unable to read temporary .gitignore: %s", _err.Error())
-	} else if _ignore == nil {
+	_ignore := gitignore.NewWithErrors(_file, _error)
+	if _ignore == nil {
 		t.Fatalf("expected non-nil GitIgnore instance; nil found")
 	}
 

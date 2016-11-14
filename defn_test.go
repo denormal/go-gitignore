@@ -159,6 +159,10 @@ git-sample-3/foo/*
 	_GITINVALIDERRORSFALSE   = 1
 	_GITINVALIDPATTERNS      = 1
 	_GITINVALIDPATTERNSFALSE = 0
+
+	// define the expected number of errors during repository matching
+	_GITREPOSITORYERRORS      = 28
+	_GITREPOSITORYERRORSFALSE = 1
 )
 
 var (
@@ -481,6 +485,12 @@ var (
 		{"a/b/e/c/include.go", "!**/e/**", false},
 		{"a/b/e/c/include.go.bak", "!**/e/**", false},
 		{"a/b/e/c/include.sh", "!**/e/**", false},
+	}
+
+	// define the repository match tests and their expected results when the
+	// error handler returns false
+	_REPOSITORYMATCHESFALSE = []match{
+		{"a/b/c_/d/e_/f/g/h/include.go~", "", false},
 	}
 
 	// define the position tests

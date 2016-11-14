@@ -211,7 +211,8 @@ func invalidparse(t *testing.T, test *parsetest) {
 			_got := test.failures[_i]
 
 			// is this error the same as expected?
-			if !_got.Is(_expected) {
+			//			if !_got.Is(_expected) {
+			if _got.Underlying() != _expected {
 				t.Fatalf(
 					"unexpected invalid parse error; expected %q, got %q",
 					_expected.Error(), _got.Error(),

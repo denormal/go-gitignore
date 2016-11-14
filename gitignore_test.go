@@ -10,8 +10,8 @@ import (
 )
 
 type gitignoretest struct {
-	position []gitignore.Position
-	errors   func(gitignore.Error) bool
+	errors   []gitignore.Error
+	error    func(gitignore.Error) bool
 	cache    gitignore.Cache
 	cached   bool
 	instance func(string) (gitignore.GitIgnore, error)
@@ -19,36 +19,86 @@ type gitignoretest struct {
 
 func TestNewFromFile(t *testing.T) {
 	_test := &gitignoretest{}
-	_test.position = make([]gitignore.Position, 0)
-	_test.errors = func(e gitignore.Error) bool {
-		_test.position = append(_test.position, e.Position())
-		return true
-	}
 	_test.instance = func(file string) (gitignore.GitIgnore, error) {
-		return gitignore.NewFromFile(file, _test.errors)
+		return gitignore.NewFromFile(file)
 	}
 
 	// perform the gitignore test
 	withfile(t, _test)
 } // TestNewFromFile()
 
+func TestNewWithErrors(t *testing.T) {
+	_test := &gitignoretest{}
+	_test.error = func(e gitignore.Error) bool {
+		_test.errors = append(_test.errors, e)
+		return true
+	}
+	_test.instance = func(file string) (gitignore.GitIgnore, error) {
+		// reset the error slice
+		_test.errors = make([]gitignore.Error, 0)
+
+		// attempt to create the GitIgnore instance
+		_ignore := gitignore.NewWithErrors(file, _test.error)
+
+		// if we encountered errors, and the first error has a zero position
+		// then it represents a file access error
+		//		- extract the error and return it
+		//		- remove it from the list of errors
+		var _err error
+		if len(_test.errors) > 0 {
+			if _test.errors[0].Position().Zero() {
+				_err = _test.errors[0].Underlying()
+				_test.errors = _test.errors[1:]
+			}
+		}
+
+		// return the GitIgnore instance
+		return _ignore, _err
+	}
+
+	// perform the gitignore test
+	withfile(t, _test)
+
+	_test.error = nil
+	withfile(t, _test)
+} // TestNewWithErrors()
+
 func TestNewWithCache(t *testing.T) {
 	// perform the gitignore test with a custom cache
 	_test := &gitignoretest{}
-	_test.errors = func(e gitignore.Error) bool {
-		_test.position = append(_test.position, e.Position())
-		return true
-	}
-	_test.cache = gitignore.NewCache()
 	_test.cached = true
+	_test.cache = gitignore.NewCache()
 	_test.instance = func(file string) (gitignore.GitIgnore, error) {
-		return gitignore.NewWithCache(file, _test.cache, _test.errors)
-	}
+		// reset the error slice
+		_test.errors = make([]gitignore.Error, 0)
 
-	// reset the array of error positions
-	_test.position = make([]gitignore.Position, 0)
+		// attempt to create the GitIgnore instance
+		_ignore := gitignore.NewWithCache(file, _test.cache, _test.error)
+
+		// if we encountered errors, and the first error has a zero position
+		// then it represents a file access error
+		//		- extract the error and return it
+		//		- remove it from the list of errors
+		var _err error
+		if len(_test.errors) > 0 {
+			if _test.errors[0].Position().Zero() {
+				_err = _test.errors[0].Underlying()
+				_test.errors = _test.errors[1:]
+			}
+		}
+
+		// return the GitIgnore instance
+		return _ignore, _err
+	}
 
 	// perform the gitignore test
+	withfile(t, _test)
+
+	// repeat the tests while accumulating errors
+	_test.error = func(e gitignore.Error) bool {
+		_test.errors = append(_test.errors, e)
+		return true
+	}
 	withfile(t, _test)
 
 	// create a temporary .gitignore
@@ -164,25 +214,29 @@ func withfile(t *testing.T, test *gitignoretest) {
 	}
 
 	// ensure we encountered the right number of errors
-	if len(test.position) != _GITBADPATTERNS {
-		t.Errorf(
-			"parse error mismatch; expected %d errors, got %d",
-			_GITBADPATTERNS, len(test.position),
-		)
-	} else {
-		// ensure the error positions are correct
-		for _i := 0; _i < _GITBADPATTERNS; _i++ {
-			_got := test.position[_i]
-			_expected := _GITBADPOSITION[_i]
+	//		- only do this if we are configured to record bad patterns
+	if test.error != nil {
+		if len(test.errors) != _GITBADPATTERNS {
+			t.Errorf(
+				"parse error mismatch; expected %d errors, got %d",
+				_GITBADPATTERNS, len(test.errors),
+			)
+		} else {
+			// ensure the error positions are correct
+			for _i := 0; _i < _GITBADPATTERNS; _i++ {
+				_got := test.errors[_i].Position()
+				_expected := _GITBADPOSITION[_i]
 
-			// augment the expected position with the test file name
-			_expected.File = _file.Name()
+				// augment the expected position with the test file name
+				_expected.File = _file.Name()
 
-			// ensure the positions are correct
-			if !coincident(_got, _expected) {
-				t.Errorf("bad pattern position mismatch; expected %q, got %q",
-					pos(_expected), pos(_got),
-				)
+				// ensure the positions are correct
+				if !coincident(_got, _expected) {
+					t.Errorf(
+						"bad pattern position mismatch; expected %q, got %q",
+						pos(_expected), pos(_got),
+					)
+				}
 			}
 		}
 	}
@@ -204,9 +258,9 @@ func withfile(t *testing.T, test *gitignoretest) {
 			if _ignore == nil {
 				t.Fatal("expected non-nil GitIgnore, nil found")
 			}
-		} else {
+		} else if test.error != nil {
 			t.Fatalf(
-				"expected error attempting to load deleted file %s; non found",
+				"expected error loading deleted file %s; none found",
 				_file.Name(),
 			)
 		}
@@ -250,11 +304,11 @@ func withfile(t *testing.T, test *gitignoretest) {
 
 	// attempt to load the .gitignore using a relative path
 	_ignore, _err = test.instance(gitignore.File)
-	if _err == nil {
+	if test.error != nil && _err == nil {
 		_git := filepath.Join(_dir, gitignore.File)
 		t.Fatalf(
-			"unable to remove temporary .gitignore %s: %s",
-			_git, _err.Error(),
+			"%s: expected error for inaccessible .gitignore; none found",
+			_git,
 		)
 	} else if _ignore != nil {
 		t.Fatalf("expected nil GitIgnore, got %v", _ignore)

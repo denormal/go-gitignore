@@ -4,7 +4,8 @@ package gitignore
 type Error interface {
 	error
 	Position() Position
-	Is(error) bool
+	//	Is(error) bool
+	Underlying() error
 } // Error()
 
 // err extends the standard error to include a Position within the parsed
@@ -23,8 +24,11 @@ func NewError(e error, p Position) Error {
 // .gitignore file)
 func (e *err) Position() Position { return e._position }
 
-// Is returns true if the Error instance is the same as the given error. This
-// permits direct comparison against package errors such as CarriageReturnError.
-func (e *err) Is(er error) bool {
-	return e.error == er
-} // Is()
+// Underlying returns the underlying error, permitting direct comparison
+// against the wrapped error.
+func (e *err) Underlying() error {
+	return e.error
+} // Underlying()
+
+// ensure err satisfies the Error interface
+var _ Error = &err{}

@@ -88,7 +88,8 @@ func lexer(t *testing.T, lines []string, eol string, tokens []token, e error) {
 		if _err != nil {
 			// if we expect an error during processing, check to see if
 			// the received error is as expected
-			if !_err.Is(e) {
+			//			if !_err.Is(e) {
+			if _err.Underlying() != e {
 				t.Fatalf(
 					"unable to retrieve expected token; %s at %s",
 					_err.Error(), pos(_err.Position()),
@@ -98,7 +99,7 @@ func lexer(t *testing.T, lines []string, eol string, tokens []token, e error) {
 
 		// did we receive a token?
 		if _got == nil {
-			t.Fatalf("expected token at %s; non found", _lexer)
+			t.Fatalf("expected token at %s; none found", _lexer)
 		} else if _got.Type != _expected.Type {
 			t.Fatalf(
 				"token type mismatch; expected type %d, got %d [%s]",
