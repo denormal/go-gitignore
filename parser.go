@@ -62,10 +62,12 @@ func (p *parser) Next() Pattern {
 
 			// we got an error from the lexer, so skip the remainder
 			// of this line and try again from the next line
-			_err = p.skip()
-			if _err != nil {
-				if !p.errors(_err) {
-					return nil
+			for _err != nil {
+				_err = p.skip()
+				if _err != nil {
+					if !p.errors(_err) {
+						return nil
+					}
 				}
 			}
 			continue
@@ -92,20 +94,20 @@ func (p *parser) Next() Pattern {
 
 				// we encountered an error parsing the retrieved tokens
 				//      - skip to the end of the line
-				_err = p.skip()
-				if _err != nil {
-					p.errors(_err)
-
-					// since we can't skip past this error, we give up
-					return nil
+				for _err != nil {
+					_err = p.skip()
+					if _err != nil {
+						if !p.errors(_err) {
+							return nil
+						}
+					}
 				}
 
 				// skip to the next token
 				continue
+			} else if _pattern != nil {
+				return _pattern
 			}
-
-			// return the pattern
-			return _pattern
 		}
 	}
 } // Next()
@@ -134,17 +136,6 @@ func (p *parser) Position() Position {
 func (p *parser) build(t *Token) (Pattern, Error) {
 	// attempt to create a valid pattern
 	switch t.Type {
-	// are we finished before we have even started?
-	case EOL:
-		p.undo(t)
-		return nil, p.err(EOFError)
-	case EOF:
-		p.undo(t)
-		return nil, p.err(EOLError)
-	case COMMENT:
-		p.undo(t)
-		return nil, p.err(CommentError)
-
 	// we have a negated pattern
 	case NEGATION:
 		return p.negation(t)
@@ -230,12 +221,11 @@ func (p *parser) sequence(t *Token) ([]*Token, Error) {
 		fallthrough
 	case PATTERN:
 		return p.pattern(t)
+	}
 
 	// otherwise, we have an invalid specification
-	default:
-		p.undo(t)
-		return nil, p.err(InvalidPatternError)
-	}
+	p.undo(t)
+	return nil, p.err(InvalidPatternError)
 } // sequence()
 
 // separator attempts to retrieve a valid sequence of tokens that may appear
@@ -280,16 +270,15 @@ func (p *parser) separator(t *Token) ([]*Token, Error) {
 	case SEPARATOR:
 		_next, _err := p.separator(_token)
 		return append(_tokens, _next...), _err
+	}
 
 	// any other token is invalid
-	default:
-		p.undo(_token)
-		return _tokens, p.err(InvalidPatternError)
-	}
+	p.undo(_token)
+	return _tokens, p.err(InvalidPatternError)
 } // separator()
 
 // any attempts to retrieve a valid sequence of tokens that may appear
-// after the wildcard '**' Token t. An Error is returned if the sequence if
+// after the any '**' Token t. An Error is returned if the sequence if
 // tokens is not valid, or if there is an error extracting tokens from the
 // input stream.
 func (p *parser) any(t *Token) ([]*Token, Error) {
@@ -316,12 +305,11 @@ func (p *parser) any(t *Token) ([]*Token, Error) {
 		fallthrough
 	case EOF:
 		return _tokens, nil
+	}
 
 	// any other token is invalid
-	default:
-		p.undo(_token)
-		return _tokens, p.err(InvalidPatternError)
-	}
+	p.undo(_token)
+	return _tokens, p.err(InvalidPatternError)
 } // any()
 
 // pattern attempts to retrieve a valid sequence of tokens that may appear
@@ -356,44 +344,35 @@ func (p *parser) pattern(t *Token) ([]*Token, Error) {
 		fallthrough
 	case EOF:
 		return _tokens, nil
+	}
 
 	// any other token is invalid
-	default:
-		p.undo(_token)
-		return _tokens, p.err(InvalidPatternError)
-	}
+	p.undo(_token)
+	return _tokens, p.err(InvalidPatternError)
 } // pattern()
 
-// eol attempts to consume Lexer tokens until end of line or end of file is
-// reached. If a non-whitspace token is encountered, eol will return an error.
+// eol attempts to consume the next Lexer token to read the end of line or end
+// of file. If a EOL or EOF is not reached , eol will return an error.
 func (p *parser) eol() Error {
-	// attempt to read to the end of line
-	//      - only consume whitespace
-	for {
-		_token, _err := p.next()
-		if _err != nil {
-			return _err
-		}
-
-		// have we encountered whitespace only?
-		switch _token.Type {
-		// ignore white space
-		case WHITESPACE:
-			continue
-
-		// if we're at the end of the line or file, we're done
-		case EOL:
-			fallthrough
-		case EOF:
-			p.undo(_token)
-			return nil
-
-		// otherwise, we have an invalid pattern
-		default:
-			p.undo(_token)
-			return p.err(InvalidPatternError)
-		}
+	// are we at the end of the line?
+	_token, _err := p.next()
+	if _err != nil {
+		return _err
 	}
+
+	// have we encountered whitespace only?
+	switch _token.Type {
+	// if we're at the end of the line or file, we're done
+	case EOL:
+		fallthrough
+	case EOF:
+		p.undo(_token)
+		return nil
+	}
+
+	// otherwise, we have an invalid pattern
+	p.undo(_token)
+	return p.err(InvalidPatternError)
 } // eol()
 
 // next returns the next token from the Lexer, or an error if there is a

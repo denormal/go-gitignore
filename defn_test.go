@@ -1,20 +1,55 @@
 package gitignore_test
 
 import (
+	"path/filepath"
+	"strings"
+
 	"github.com/denormal/go-gitignore"
 )
 
-type test struct {
+type token struct {
+	Type           gitignore.TokenType
+	Name           string
+	Token          string
+	Line           int
+	Column         int
+	NewLine        int // token offset for newline end of line
+	CarriageReturn int // token offset for carriage return end of line
+} // token{}
+
+type match struct {
 	Path    string // test path
 	Pattern string // matching pattern (if any)
 	Ignore  bool   // whether the path is ignored or included
-} // test{}
+} // match{}
+
+func (m match) Local() string {
+	_path := m.Path
+	if m.IsDir() {
+		_path = strings.TrimSuffix(m.Path, "/")
+	}
+
+	// generate the local representation of the match path
+	return filepath.Join(strings.Split(_path, "/")...)
+} // Local()
+
+func (m match) IsDir() bool {
+	return strings.HasSuffix(m.Path, "/")
+} // IsDir()
+
+type position struct {
+	File   string
+	Line   int
+	Column int
+	Offset int
+	String string
+} // position{}
 
 // define the constants for the unit tests
 const (
 	// define the example .gitignore file contents
 	_GITIGNORE = `
-# example .gitignore contents
+# example .gitignore
 
 !*.go
 
@@ -22,7 +57,9 @@ const (
 *.a
 
 /ignore/this/path/
-/and/**/all/**/these/**
+
+# the following line has trailing whitespace
+/and/**/all/**/these/**  	 
 !/but/not/this\ 
 
 we support   spaces
@@ -30,9 +67,14 @@ we support   spaces
 /**/this.is.not/a ** valid/pattern
 /**/nor/is/***/this
 /nor/is***this
-and this is #3 failure
+northis** 	 x
 
 but \this\ is / valid\#
+\
+
+so	is this#
+and this is #3 ok too
+ / //
 `
 
 	// define the example .gitignore file contents for the Match tests
@@ -80,11 +122,10 @@ README.md
 git-sample-3/*
 !git-sample-3/foo
 git-sample-3/foo/*
-!git-sample-3/foo/bar
-`
+!git-sample-3/foo/bar`
 
 	// define the number of good & bad patterns in the .gitignore above
-	_GITPATTERNS    = 8
+	_GITPATTERNS    = 12
 	_GITBADPATTERNS = 4
 
 	// define the number of good & bad patterns in the match .gitignore above
@@ -101,164 +142,218 @@ git-sample-3/foo/*
 
 	// define the directory mask for any directories created during testing
 	_GITMASK = 0700
+
+	// define a .gitignore that will trigger lexer errors
+	_GITINVALID = "" +
+		"# the following two lines will trigger repeated lexer errors\n" +
+		"x\rx\rx\rx\n" +
+		"\rx\rx\rx\n" +
+		"!\rx\n" +
+		"/my/valid/pattern\n" +
+		"!\n" +
+		"** *\n" +
+		"/\r"
+
+	// define the number of invalid patterns and errors
+	_GITINVALIDERRORS        = 10
+	_GITINVALIDERRORSFALSE   = 1
+	_GITINVALIDPATTERNS      = 1
+	_GITINVALIDPATTERNSFALSE = 0
 )
 
 var (
 	// define the positions of the bad patterns
 	_GITBADPOSITION = []gitignore.Position{
-		gitignore.NewPosition(15, 19, 148),
-		gitignore.NewPosition(16, 14, 178),
-		gitignore.NewPosition(17, 8, 192),
-		gitignore.NewPosition(18, 13, 212),
+		gitignore.NewPosition("", 17, 19, 189),
+		gitignore.NewPosition("", 18, 14, 219),
+		gitignore.NewPosition("", 19, 8, 233),
+		gitignore.NewPosition("", 20, 8, 248),
 	}
 
 	// define the positions of the good patterns
 	_GITPOSITION = []gitignore.Position{
-		gitignore.NewPosition(4, 1, 32),
-		gitignore.NewPosition(6, 1, 39),
-		gitignore.NewPosition(7, 1, 43),
-		gitignore.NewPosition(9, 1, 48),
-		gitignore.NewPosition(10, 1, 67),
-		gitignore.NewPosition(11, 1, 91),
-		gitignore.NewPosition(13, 1, 109),
-		gitignore.NewPosition(20, 1, 224),
+		gitignore.NewPosition("", 4, 1, 23),
+		gitignore.NewPosition("", 6, 1, 30),
+		gitignore.NewPosition("", 7, 1, 34),
+		gitignore.NewPosition("", 9, 1, 39),
+		gitignore.NewPosition("", 12, 1, 104),
+		gitignore.NewPosition("", 13, 1, 132),
+		gitignore.NewPosition("", 15, 1, 150),
+		gitignore.NewPosition("", 22, 1, 256),
+		gitignore.NewPosition("", 23, 1, 280),
+		gitignore.NewPosition("", 25, 1, 283),
+		gitignore.NewPosition("", 26, 1, 295),
+		gitignore.NewPosition("", 27, 1, 317),
 	}
 
 	// define the token stream for the _GITIGNORE .gitignore
-	_GITTOKENS = []struct {
-		Type  gitignore.TokenType
-		Name  string
-		Token string
-	}{
+	_GITTOKENS = []token{
 		// 1:
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.EOL, "EOL", "\n", 1, 1, 0, 0},
 		// 2: # example .gitignore contents
-		{gitignore.COMMENT, "COMMENT", "# example .gitignore contents"},
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.COMMENT, "COMMENT", "# example .gitignore", 2, 1, 1, 2},
+		{gitignore.EOL, "EOL", "\n", 2, 21, 21, 22},
 		// 3:
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.EOL, "EOL", "\n", 3, 1, 22, 24},
 		// 4: !*.go
-		{gitignore.NEGATION, "NEGATION", "!"},
-		{gitignore.WILDCARD, "WILDCARD", "*"},
-		{gitignore.PATTERN, "PATTERN", ".go"},
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.NEGATION, "NEGATION", "!", 4, 1, 23, 26},
+		{gitignore.WILDCARD, "WILDCARD", "*", 4, 2, 24, 27},
+		{gitignore.PATTERN, "PATTERN", ".go", 4, 3, 25, 28},
+		{gitignore.EOL, "EOL", "\n", 4, 6, 28, 31},
 		// 5:
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.EOL, "EOL", "\n", 5, 1, 29, 33},
 		// 6: *.o
-		{gitignore.WILDCARD, "WILDCARD", "*"},
-		{gitignore.PATTERN, "PATTERN", ".o"},
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.WILDCARD, "WILDCARD", "*", 6, 1, 30, 35},
+		{gitignore.PATTERN, "PATTERN", ".o", 6, 2, 31, 36},
+		{gitignore.EOL, "EOL", "\n", 6, 4, 33, 38},
 		// 7: *.a
-		{gitignore.WILDCARD, "WILDCARD", "*"},
-		{gitignore.PATTERN, "PATTERN", ".a"},
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.WILDCARD, "WILDCARD", "*", 7, 1, 34, 40},
+		{gitignore.PATTERN, "PATTERN", ".a", 7, 2, 35, 41},
+		{gitignore.EOL, "EOL", "\n", 7, 4, 37, 43},
 		// 8:
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.EOL, "EOL", "\n", 8, 1, 38, 45},
 		// 9: /ignore/this/path/
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "ignore"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "this"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "path"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.EOL, "EOL", "\n"},
-		// 10: /and/**/all/**/these/**
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "and"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.ANY, "ANY", "**"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "all"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.ANY, "ANY", "**"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "these"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.ANY, "ANY", "**"},
-		{gitignore.EOL, "EOL", "\n"},
-		// 11: !/but/not/this\
-		{gitignore.NEGATION, "NEGATION", "!"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "but"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "not"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "this"},
-		{gitignore.EOL, "EOL", "\n"},
-		// 12:
-		{gitignore.EOL, "EOL", "\n"},
-		// 13: we support   spaces
-		{gitignore.PATTERN, "PATTERN", "we"},
-		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.PATTERN, "PATTERN", "support"},
-		{gitignore.WHITESPACE, "WHITESPACE", "   "},
-		{gitignore.PATTERN, "PATTERN", "spaces"},
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 9, 1, 39, 47},
+		{gitignore.PATTERN, "PATTERN", "ignore", 9, 2, 40, 48},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 9, 8, 46, 54},
+		{gitignore.PATTERN, "PATTERN", "this", 9, 9, 47, 55},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 9, 13, 51, 59},
+		{gitignore.PATTERN, "PATTERN", "path", 9, 14, 52, 60},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 9, 18, 56, 64},
+		{gitignore.EOL, "EOL", "\n", 9, 19, 57, 65},
+		// 10:
+		{gitignore.EOL, "EOL", "\n", 10, 1, 58, 67},
+		// 11: # the following line has trailing whitespace
+		{gitignore.COMMENT, "COMMENT",
+			"# the following line has trailing whitespace",
+			11, 1, 59, 69},
+		{gitignore.EOL, "EOL", "\n", 11, 45, 103, 113},
+		// 12: /and/**/all/**/these/**
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 12, 1, 104, 115},
+		{gitignore.PATTERN, "PATTERN", "and", 12, 2, 105, 116},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 12, 5, 108, 119},
+		{gitignore.ANY, "ANY", "**", 12, 6, 109, 120},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 12, 8, 111, 122},
+		{gitignore.PATTERN, "PATTERN", "all", 12, 9, 112, 123},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 12, 12, 115, 126},
+		{gitignore.ANY, "ANY", "**", 12, 13, 116, 127},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 12, 15, 118, 129},
+		{gitignore.PATTERN, "PATTERN", "these", 12, 16, 119, 130},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 12, 21, 124, 135},
+		{gitignore.ANY, "ANY", "**", 12, 22, 125, 136},
+		{gitignore.WHITESPACE, "WHITESPACE", "  \t ", 12, 24, 127, 138},
+		{gitignore.EOL, "EOL", "\n", 12, 28, 131, 142},
+		// 13: !/but/not/this\
+		{gitignore.NEGATION, "NEGATION", "!", 13, 1, 132, 144},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 13, 2, 133, 145},
+		{gitignore.PATTERN, "PATTERN", "but", 13, 3, 134, 146},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 13, 6, 137, 149},
+		{gitignore.PATTERN, "PATTERN", "not", 13, 7, 138, 150},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 13, 10, 141, 153},
+		{gitignore.PATTERN, "PATTERN", "this\\ ", 13, 11, 142, 154},
+		{gitignore.EOL, "EOL", "\n", 13, 17, 148, 160},
 		// 14:
-		{gitignore.EOL, "EOL", "\n"},
-		// 15: /**/this.is.not/a ** valid/pattern
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.ANY, "ANY", "**"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "this.is.not"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "a"},
-		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.ANY, "ANY", "**"},
-		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.PATTERN, "PATTERN", "valid"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "pattern"},
-		{gitignore.EOL, "EOL", "\n"},
-		// 16: /**/nor/is/***/this
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.ANY, "ANY", "**"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "nor"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "is"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.ANY, "ANY", "**"},
-		{gitignore.WILDCARD, "WILDCARD", "*"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "this"},
-		{gitignore.EOL, "EOL", "\n"},
-		// 17: /nor/is***this
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "nor"},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.PATTERN, "PATTERN", "is"},
-		{gitignore.ANY, "ANY", "**"},
-		{gitignore.WILDCARD, "WILDCARD", "*"},
-		{gitignore.PATTERN, "PATTERN", "this"},
-		{gitignore.EOL, "EOL", "\n"},
-		// 18: and this is #3 failure
-		{gitignore.PATTERN, "PATTERN", "and"},
-		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.PATTERN, "PATTERN", "this"},
-		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.PATTERN, "PATTERN", "is"},
-		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.COMMENT, "COMMENT", "#3 failure"},
-		{gitignore.EOL, "EOL", "\n"},
-		// 19:
-		{gitignore.EOL, "EOL", "\n"},
-		// 20: but \this\ is / valid
-		{gitignore.PATTERN, "PATTERN", "but"},
-		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.PATTERN, "PATTERN", "\\this\\ is"},
-		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.SEPARATOR, "SEPARATOR", "/"},
-		{gitignore.WHITESPACE, "WHITESPACE", " "},
-		{gitignore.PATTERN, "PATTERN", "valid"},
-		{gitignore.EOL, "EOL", "\n"},
+		{gitignore.EOL, "EOL", "\n", 14, 1, 149, 162},
+		// 15: we support   spaces
+		{gitignore.PATTERN, "PATTERN", "we", 15, 1, 150, 164},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 15, 3, 152, 166},
+		{gitignore.PATTERN, "PATTERN", "support", 15, 4, 153, 167},
+		{gitignore.WHITESPACE, "WHITESPACE", "   ", 15, 11, 160, 174},
+		{gitignore.PATTERN, "PATTERN", "spaces", 15, 14, 163, 177},
+		{gitignore.EOL, "EOL", "\n", 15, 20, 169, 183},
+		// 16:
+		{gitignore.EOL, "EOL", "\n", 16, 1, 170, 185},
+		// 17: /**/this.is.not/a ** valid/pattern
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 17, 1, 171, 187},
+		{gitignore.ANY, "ANY", "**", 17, 2, 172, 188},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 17, 4, 174, 190},
+		{gitignore.PATTERN, "PATTERN", "this.is.not", 17, 5, 175, 191},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 17, 16, 186, 202},
+		{gitignore.PATTERN, "PATTERN", "a", 17, 17, 187, 203},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 17, 18, 188, 204},
+		{gitignore.ANY, "ANY", "**", 17, 19, 189, 205},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 17, 21, 191, 207},
+		{gitignore.PATTERN, "PATTERN", "valid", 17, 22, 192, 208},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 17, 27, 197, 213},
+		{gitignore.PATTERN, "PATTERN", "pattern", 17, 28, 198, 214},
+		{gitignore.EOL, "EOL", "\n", 17, 35, 205, 221},
+		// 18: /**/nor/is/***/this
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 18, 1, 206, 223},
+		{gitignore.ANY, "ANY", "**", 18, 2, 207, 224},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 18, 4, 209, 226},
+		{gitignore.PATTERN, "PATTERN", "nor", 18, 5, 210, 227},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 18, 8, 213, 230},
+		{gitignore.PATTERN, "PATTERN", "is", 18, 9, 214, 231},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 18, 11, 216, 233},
+		{gitignore.ANY, "ANY", "**", 18, 12, 217, 234},
+		{gitignore.WILDCARD, "WILDCARD", "*", 18, 14, 219, 236},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 18, 15, 220, 237},
+		{gitignore.PATTERN, "PATTERN", "this", 18, 16, 221, 238},
+		{gitignore.EOL, "EOL", "\n", 18, 20, 225, 242},
+		// 19: /nor/is***this
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 19, 1, 226, 244},
+		{gitignore.PATTERN, "PATTERN", "nor", 19, 2, 227, 245},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 19, 5, 230, 248},
+		{gitignore.PATTERN, "PATTERN", "is", 19, 6, 231, 249},
+		{gitignore.ANY, "ANY", "**", 19, 8, 233, 251},
+		{gitignore.WILDCARD, "WILDCARD", "*", 19, 10, 235, 253},
+		{gitignore.PATTERN, "PATTERN", "this", 19, 11, 236, 254},
+		{gitignore.EOL, "EOL", "\n", 19, 15, 240, 258},
+		// 20: northis** 	 x
+		{gitignore.PATTERN, "PATTERN", "northis", 20, 1, 241, 260},
+		{gitignore.ANY, "ANY", "**", 20, 8, 248, 267},
+		{gitignore.WHITESPACE, "WHITESPACE", " \t ", 20, 10, 250, 269},
+		{gitignore.PATTERN, "PATTERN", "x", 20, 13, 253, 272},
+		{gitignore.EOL, "EOL", "\n", 20, 14, 254, 273},
+		// 21:
+		{gitignore.EOL, "EOL", "\n", 21, 1, 255, 275},
+		// 22: but \this\ is / valid
+		{gitignore.PATTERN, "PATTERN", "but", 22, 1, 256, 277},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 22, 4, 259, 280},
+		{gitignore.PATTERN, "PATTERN", "\\this\\ is", 22, 5, 260, 281},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 22, 14, 269, 290},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 22, 15, 270, 291},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 22, 16, 271, 292},
+		{gitignore.PATTERN, "PATTERN", "valid\\#", 22, 17, 272, 293},
+		{gitignore.EOL, "EOL", "\n", 22, 24, 279, 300},
+		// 23: \
+		{gitignore.PATTERN, "PATTERN", "\\", 23, 1, 280, 302},
+		{gitignore.EOL, "EOL", "\n", 23, 2, 281, 303},
+		// 24:
+		{gitignore.EOL, "EOL", "\n", 24, 1, 282, 305},
+		// 25: so is this#
+		{gitignore.PATTERN, "PATTERN", "so", 25, 1, 283, 307},
+		{gitignore.WHITESPACE, "WHITESPACE", "	", 25, 3, 285, 309},
+		{gitignore.PATTERN, "PATTERN", "is", 25, 4, 286, 310},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 25, 6, 288, 312},
+		{gitignore.PATTERN, "PATTERN", "this#", 25, 7, 289, 313},
+		{gitignore.EOL, "EOL", "\n", 25, 12, 294, 318},
+		// 26: and this is #3 ok too
+		{gitignore.PATTERN, "PATTERN", "and", 26, 1, 295, 320},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 26, 4, 298, 323},
+		{gitignore.PATTERN, "PATTERN", "this", 26, 5, 299, 324},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 26, 9, 303, 328},
+		{gitignore.PATTERN, "PATTERN", "is", 26, 10, 304, 329},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 26, 12, 306, 331},
+		{gitignore.PATTERN, "PATTERN", "#3", 26, 13, 307, 332},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 26, 15, 309, 334},
+		{gitignore.PATTERN, "PATTERN", "ok", 26, 16, 310, 335},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 26, 18, 312, 337},
+		{gitignore.PATTERN, "PATTERN", "too", 26, 19, 313, 338},
+		{gitignore.EOL, "EOL", "\n", 26, 22, 316, 341},
+		// 27: / //
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 27, 1, 317, 343},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 27, 2, 318, 344},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 27, 3, 319, 345},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 27, 4, 320, 346},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 27, 5, 321, 347},
+		{gitignore.EOL, "EOL", "\n", 27, 6, 322, 348},
 
-		{gitignore.EOF, "EOF", ""},
+		{gitignore.EOF, "EOF", "", 28, 1, 323, 350},
 	}
 
 	// define match tests and their expected results
-	_GITMATCHES = []test{
+	_GITMATCHES = []match{
 		{"!important!.txt", "\\!important!.txt", true},
 		{"arch/", "", false},
 		{"arch/foo/", "", false},
@@ -273,13 +368,13 @@ var (
 		{"Documentation/foo.html", "!foo*.html", false},
 		{"Documentation/gitignore.html", "*.html", true},
 		{"Documentation/test.a.html", "*.html", true},
-		{"exclude", "exclude/**", true},
-		{"exclude/dir1", "exclude/**", true},
-		{"exclude/dir1/dir2", "exclude/**", true},
-		{"exclude/dir1/dir2/dir3", "exclude/**", true},
+		{"exclude/", "exclude/**", true},
+		{"exclude/dir1/", "exclude/**", true},
+		{"exclude/dir1/dir2/", "exclude/**", true},
+		{"exclude/dir1/dir2/dir3/", "exclude/**", true},
 		{"exclude/dir1/dir2/dir3/testfile", "exclude/**", true},
 		{"file.o", "*.[oa]", true},
-		{"foodir", "", false},
+		{"foodir/", "", false},
 		{"foodir/bar/", "**/foodir/bar", true},
 		{"foodir/bar/testfile", "", false},
 		{"git-sample-3/", "", false},
@@ -287,7 +382,6 @@ var (
 		{"git-sample-3/foo/bar/", "!git-sample-3/foo/bar", false},
 		{"git-sample-3/foo/test/", "git-sample-3/foo/*", true},
 		{"git-sample-3/test/", "git-sample-3/*", true},
-		{"git-sample-3", "", false},
 		{"htmldoc/", "", false},
 		{"htmldoc/docs.html", "!htmldoc/*.html", false},
 		{"htmldoc/jslib.min.js", "*.min.js", true},
@@ -347,6 +441,9 @@ var (
 		"a/b": `
 # include .go files in this directory
 !*.go
+
+# include everything under e
+!**/e/**
 `,
 		"a/b/d": `
 # include c directories
@@ -355,7 +452,7 @@ var (
 	}
 
 	// define repository match tests and their expected results
-	_REPOSITORYMATCHES = []test{
+	_REPOSITORYMATCHES = []match{
 		{"include.go", "", false},
 		{"ignore.go.bak", "*.bak", true},
 		{"a/ignore.go", "*.go", true},
@@ -380,5 +477,121 @@ var (
 		{"a/b/d/c/include.go", "!*.go", false},
 		{"a/b/d/c/ignore.go.bak", "*.bak", true},
 		{"a/b/d/c/include.sh", "", false},
+		{"a/b/e/c/", "!**/e/**", false},
+		{"a/b/e/c/include.go", "!**/e/**", false},
+		{"a/b/e/c/include.go.bak", "!**/e/**", false},
+		{"a/b/e/c/include.sh", "!**/e/**", false},
+	}
+
+	// define the position tests
+	_POSITIONS = []position{
+		{"", 0, 0, 0, "+0"},
+		{"", 1, 0, 0, "1"},
+		{"", 0, 1, 0, "+0"},
+		{"", 0, 0, 1, "+1"},
+		{"", 1, 2, 0, "1:2"},
+		{"", 1, 0, 3, "1"},
+		{"", 1, 2, 3, "1:2"},
+		{"file", 0, 0, 0, "file: +0"},
+		{"file", 1, 0, 0, "file: 1"},
+		{"file", 0, 1, 0, "file: +0"},
+		{"file", 0, 0, 1, "file: +1"},
+		{"file", 1, 2, 0, "file: 1:2"},
+		{"file", 1, 0, 3, "file: 1"},
+		{"file", 1, 2, 3, "file: 1:2"},
+	}
+
+	// define the token tests
+	//		- we us the same position for all tokens, and ignore the
+	//		  token string (i.e. the sequence of runes that comprise this
+	//		  token), since we test the correctness of rune mappings to toknes
+	//	      in the above tests of example .gitignore files
+	_TOKENS = []token{
+		{gitignore.ILLEGAL, "ILLEGAL", "", 1, 2, 3, 4},
+		{gitignore.EOF, "EOF", "", 1, 2, 3, 4},
+		{gitignore.EOL, "EOL", "", 1, 2, 3, 4},
+		{gitignore.WHITESPACE, "WHITESPACE", "", 1, 2, 3, 4},
+		{gitignore.COMMENT, "COMMENT", "", 1, 2, 3, 4},
+		{gitignore.SEPARATOR, "SEPARATOR", "", 1, 2, 3, 4},
+		{gitignore.NEGATION, "NEGATION", "", 1, 2, 3, 4},
+		{gitignore.PATTERN, "PATTERN", "", 1, 2, 3, 4},
+		{gitignore.WILDCARD, "WILDCARD", "", 1, 2, 3, 4},
+		{gitignore.ANY, "ANY", "", 1, 2, 3, 4},
+		{gitignore.BAD, "BAD TOKEN", "", 1, 2, 3, 4},
+
+		// invalid tokens
+		{-1, "BAD TOKEN", "", 1, 2, 3, 4},
+		{12345, "BAD TOKEN", "", 1, 2, 3, 4},
+	}
+
+	// define the beginning position for the parser & lexer
+	_BEGINNING = gitignore.NewPosition("", 1, 1, 0)
+
+	// define the tokens from the invalid .gitignore above
+	_TOKENSINVALID = []token{
+		// 1: # the following two lines will trigger repeated lexer errors
+		{gitignore.COMMENT,
+			"COMMENT",
+			"# the following two lines will trigger repeated lexer errors",
+			1, 1, 0, 0},
+		{gitignore.EOL, "EOL", "\n", 1, 61, 60, 60},
+		// 2: x\rx\rx\rx
+		{gitignore.PATTERN, "PATTERN", "x", 2, 1, 61, 62},
+		{gitignore.BAD, "BAD TOKEN", "\r", 2, 2, 62, 63},
+		{gitignore.PATTERN, "PATTERN", "x", 2, 3, 63, 64},
+		{gitignore.BAD, "BAD TOKEN", "\r", 2, 4, 64, 65},
+		{gitignore.PATTERN, "PATTERN", "x", 2, 5, 65, 66},
+		{gitignore.BAD, "BAD TOKEN", "\r", 2, 6, 66, 67},
+		{gitignore.PATTERN, "PATTERN", "x", 2, 7, 67, 68},
+		{gitignore.EOL, "EOL", "\n", 2, 8, 68, 69},
+		// 3: x\rx\rx\rx
+		{gitignore.BAD, "BAD TOKEN", "\r", 3, 1, 69, 71},
+		{gitignore.PATTERN, "PATTERN", "x", 3, 2, 70, 72},
+		{gitignore.BAD, "BAD TOKEN", "\r", 3, 3, 71, 73},
+		{gitignore.PATTERN, "PATTERN", "x", 3, 4, 72, 74},
+		{gitignore.BAD, "BAD TOKEN", "\r", 3, 5, 73, 75},
+		{gitignore.PATTERN, "PATTERN", "x", 3, 6, 74, 76},
+		{gitignore.EOL, "EOL", "\n", 3, 7, 75, 77},
+		// 4: !\rx
+		{gitignore.NEGATION, "NEGATION", "!", 4, 1, 76, 79},
+		{gitignore.BAD, "BAD TOKEN", "\r", 4, 2, 77, 80},
+		{gitignore.PATTERN, "PATTERN", "x", 4, 3, 78, 81},
+		{gitignore.EOL, "EOL", "\n", 4, 4, 79, 82},
+		// 5: /my/valid/pattern
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 5, 1, 80, 84},
+		{gitignore.PATTERN, "PATTERN", "my", 5, 2, 81, 85},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 5, 4, 83, 87},
+		{gitignore.PATTERN, "PATTERN", "valid", 5, 5, 84, 88},
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 5, 10, 89, 93},
+		{gitignore.PATTERN, "PATTERN", "pattern", 5, 11, 90, 94},
+		{gitignore.EOL, "EOL", "\n", 5, 18, 97, 101},
+		// 6: !
+		{gitignore.NEGATION, "NEGATION", "!", 6, 1, 98, 103},
+		{gitignore.EOL, "EOL", "\n", 6, 2, 99, 104},
+		// 7: ** *
+		{gitignore.ANY, "ANY", "**", 7, 1, 100, 106},
+		{gitignore.WHITESPACE, "WHITESPACE", " ", 7, 3, 102, 108},
+		{gitignore.WILDCARD, "WILDCARD", "*", 7, 4, 103, 109},
+		{gitignore.EOL, "EOL", "\n", 7, 5, 104, 110},
+		// 8: /\r
+		{gitignore.SEPARATOR, "SEPARATOR", "/", 8, 1, 105, 112},
+		{gitignore.BAD, "BAD TOKEN", "\r", 8, 2, 106, 113},
+
+		{gitignore.EOF, "EOF", "", 8, 3, 107, 114},
+	}
+
+	// define the patterns & errors expected during invalid content parsing
+	_GITINVALIDPATTERN = []string{"/my/valid/pattern"}
+	_GITINVALIDERROR   = []error{
+		gitignore.CarriageReturnError,
+		gitignore.CarriageReturnError,
+		gitignore.CarriageReturnError,
+		gitignore.CarriageReturnError,
+		gitignore.CarriageReturnError,
+		gitignore.CarriageReturnError,
+		gitignore.CarriageReturnError,
+		gitignore.InvalidPatternError,
+		gitignore.InvalidPatternError,
+		gitignore.CarriageReturnError,
 	}
 )

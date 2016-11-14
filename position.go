@@ -6,6 +6,7 @@ import (
 
 // Position records the position of the .gitignore parser.
 type Position struct {
+	File   string
 	Line   int
 	Column int
 	Offset int
@@ -13,8 +14,9 @@ type Position struct {
 
 // NewPosition returns the Position instance for the given line, column, and
 // rune offset.
-func NewPosition(line int, column int, offset int) Position {
+func NewPosition(file string, line int, column int, offset int) Position {
 	return Position{
+		File:   file,
 		Line:   line,
 		Column: column,
 		Offset: offset,
@@ -23,11 +25,16 @@ func NewPosition(line int, column int, offset int) Position {
 
 // String returns a string representation of the current position.
 func (p Position) String() string {
+	_prefix := ""
+	if p.File != "" {
+		_prefix = p.File + ": "
+	}
+
 	if p.Line == 0 {
-		return fmt.Sprintf("+%d", p.Offset)
+		return fmt.Sprintf("%s+%d", _prefix, p.Offset)
 	} else if p.Column == 0 {
-		return fmt.Sprintf("%d", p.Line)
+		return fmt.Sprintf("%s%d", _prefix, p.Line)
 	} else {
-		return fmt.Sprintf("%d:%d", p.Line, p.Column)
+		return fmt.Sprintf("%s%d:%d", _prefix, p.Line, p.Column)
 	}
 } // String()

@@ -42,6 +42,15 @@ func dir(content map[string]string) (string, error) {
 		return "", _err
 	}
 
+	// resolve the path of this directory
+	//		- we do this to handle systems with a temporary directory
+	//		  that is a symbolic link
+	_dir, _err = filepath.EvalSymlinks(_dir)
+	if _err != nil {
+		defer os.Remove(_dir)
+		return "", _err
+	}
+
 	// populate the temporary directory with the content map
 	//		- each key of the map is a file name
 	//		- each value of the map is the file content
@@ -53,13 +62,22 @@ func dir(content map[string]string) (string, error) {
 				continue
 			}
 
+			// should we create a directory or a file?
+			_isdir := false
+			_path := _key
+			if strings.HasSuffix(_path, "/") {
+				_path = strings.TrimSuffix(_path, "/")
+				_isdir = true
+			}
+
 			// construct the absolute path (according to the local file system)
-			_parts := strings.Split(_key, "/")
-			_last := len(_parts) - 1
 			_abs := _dir
-			if _last > 0 {
-				_abs = filepath.Join(_parts[:_last]...)
-				_abs = filepath.Join(_dir, _abs)
+			_parts := strings.Split(_path, "/")
+			_last := len(_parts) - 1
+			if _isdir {
+				_abs = filepath.Join(_abs, filepath.Join(_parts...))
+			} else if _last > 0 {
+				_abs = filepath.Join(_abs, filepath.Join(_parts[:_last]...))
 			}
 
 			// ensure this directory exists
@@ -67,6 +85,8 @@ func dir(content map[string]string) (string, error) {
 			if _err != nil {
 				defer os.RemoveAll(_dir)
 				return "", _err
+			} else if _isdir {
+				continue
 			}
 
 			// create the absolute path for the target file
@@ -96,12 +116,20 @@ func dir(content map[string]string) (string, error) {
 } // dir()
 
 func coincident(a, b gitignore.Position) bool {
-	return a.Line == b.Line && a.Column == b.Column && a.Offset == b.Offset
+	return a.File == b.File &&
+		a.Line == b.Line &&
+		a.Column == b.Column &&
+		a.Offset == b.Offset
 } // coincident()
 
-func position(p gitignore.Position) string {
-	return fmt.Sprintf("%d:%d [%d]", p.Line, p.Column, p.Offset)
-} // position()
+func pos(p gitignore.Position) string {
+	_prefix := p.File
+	if _prefix != "" {
+		_prefix = _prefix + ": "
+	}
+
+	return fmt.Sprintf("%s%d:%d [%d]", _prefix, p.Line, p.Column, p.Offset)
+} // pos()
 
 func buffer(content string) (*bytes.Buffer, error) {
 	// return a buffered .gitignore

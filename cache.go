@@ -53,4 +53,4 @@ func (c *cache) Get(path string) GitIgnore {
 } // Get()
 
 // ensure cache supports the Cache interface
-var global Cache = &cache{}
+var _ Cache = &cache{}

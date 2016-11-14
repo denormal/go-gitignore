@@ -46,9 +46,13 @@ func New(r io.Reader, base string, errors func(Error) bool) GitIgnore {
 	return &ignore{_base: base, _pattern: _patterns}
 } // New()
 
-// NewGitIgnoreFile creates a GitIgnore instance from the given file. An error
+// NewFromFile creates a GitIgnore instance from the given file. An error
 // will be returned if file cannot be opened or its absolute path determined.
-func NewFromFile(file string) (GitIgnore, error) {
+// If errors is given, it will be invoked for every error encountered when
+// parsing the .gitignore patterns. Parsing will terminate if errors is called
+// and returns false, otherwise, parsing will continue until end of file has
+// been reached.
+func NewFromFile(file string, errors func(Error) bool) (GitIgnore, error) {
 	// we need the absolute path for the GitIgnore base
 	_file, _err := filepath.Abs(file)
 	if _err != nil {
@@ -61,40 +65,66 @@ func NewFromFile(file string) (GitIgnore, error) {
 	if _err != nil {
 		return nil, _err
 	}
-	return New(_fh, _base, nil), nil
-} // NewFromFile()
 
-// NewGitIgnoreCached returns a GitIgnore instance (using NewGetIgnoreFile)
-// for the given file. If the file has been loaded before, its GitIgnore
-// instance will be returned from the cache rather than being reloaded. If
-// cache is not defined, NewGitIgnoreCached will use a default cache.
-//
-// If NewGitIgnoreFile returns an error, NewGitIgnoreCached will store an empty
-// GitIgnore (i.e. no patterns) against the file to prevent repeated parse
-// attempts on subsequent requests for the same file. Subsequent calls to
-// NewGitIgnoreCached for a file that could not be loaded due to an error will
-// return nil.
-func NewWithCache(file string, cache Cache) (GitIgnore, error) {
-	// if we haven't been given a cache, use the default cache
-	if cache == nil {
-		cache = global
+	// do we have an error handler?
+	_errors := errors
+	if _errors != nil {
+		// augment the error handler to include the .gitignore file name
+		//		- we do this here since the parser and lexer interfaces are
+		//		  not aware of file names
+		_errors = func(e Error) bool {
+			// augment the position with the file name
+			_position := e.Position()
+			_position.File = _file
+
+			// create a new error with the updated Position
+			_error := NewError(e, _position)
+
+			// invoke the original error handler
+			return errors(_error)
+		}
 	}
 
+	// return the GitIgnore instance
+	return New(_fh, _base, _errors), nil
+} // NewFromFile()
+
+// NewWithCache returns a GitIgnore instance (using NewFromFile)
+// for the given file. If the file has been loaded before, its GitIgnore
+// instance will be returned from the cache rather than being reloaded. If
+// cache is not defined, NewWithCache will behave as NewFromFile
+//
+// If NewFromFile returns an error, NewWithCache will store an empty
+// GitIgnore (i.e. no patterns) against the file to prevent repeated parse
+// attempts on subsequent requests for the same file. Subsequent calls to
+// NewWithCache for a file that could not be loaded due to an error will
+// return nil.
+//
+// If errors is given, it will be invoked for every error encountered when
+// parsing the .gitignore patterns. Parsing will terminate if errors is called
+// and returns false, otherwise, parsing will continue until end of file has
+// been reached.
+func NewWithCache(file string, cache Cache, errors func(Error) bool) (GitIgnore, error) {
 	// use the file absolute path as its key into the cache
 	_abs, _err := filepath.Abs(file)
 	if _err != nil {
 		return nil, _err
 	}
 
-	_ignore := cache.Get(_abs)
+	var _ignore GitIgnore
+	if cache != nil {
+		_ignore = cache.Get(_abs)
+	}
 	if _ignore == nil {
-		_ignore, _err = NewFromFile(file)
+		_ignore, _err = NewFromFile(file, errors)
 		if _ignore == nil {
 			// if the load failed, cache an empty GitIgnore to prevent
 			// further attempts to load this file
 			_ignore = empty
 		}
-		cache.Set(_abs, _ignore)
+		if cache != nil {
+			cache.Set(_abs, _ignore)
+		}
 	}
 
 	// return the ignore (if we have it)

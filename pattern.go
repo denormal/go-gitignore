@@ -36,12 +36,12 @@ type path struct {
 	_depth int
 } // path{}
 
-// wildcard represents a pattern that contains at least one "any" token "**"
+// any represents a pattern that contains at least one "any" token "**"
 // allowing for recursive matching.
-type wildcard struct {
+type any struct {
 	pattern
 	_tokens []*Token
-} // wildcard{}
+} // any{}
 
 // NewPattern returns a Pattern from the ordered set of Tokens. The tokens are
 // assumed to represent a well-formed .gitignore pattern. A Pattern may be
@@ -87,7 +87,7 @@ func NewPattern(tokens []*Token) Pattern {
 	return _pattern.compile(tokens)
 } // NewPattern()
 
-// compile generates a specific Pattern (i.e. name, path or wildcard)
+// compile generates a specific Pattern (i.e. name, path or any)
 // represented by the list of tokens.
 func (p *pattern) compile(tokens []*Token) Pattern {
 	// what tokens do we have in this pattern?
@@ -225,7 +225,7 @@ func (p *path) Match(path string, isdir bool) bool {
 //
 
 // any returns a Pattern designed to match paths that include at least one
-// wildcard pattern '**', specifying recursive matching.
+// any pattern '**', specifying recursive matching.
 func (p *pattern) any(tokens []*Token) Pattern {
 	// consider only the non-SEPARATOR tokens, as these will be matched
 	// against the path components
@@ -236,8 +236,8 @@ func (p *pattern) any(tokens []*Token) Pattern {
 		}
 	}
 
-	// if the pattern is not anchored at the start, but does not start with a
-	// wildcard token, then add a wildcard to the start of the set of tokens
+	// if the pattern is not anchored at the start, but does not start with an
+	// 'any' token, then add an 'any' to the start of the set of tokens
 	//
 	// this simplifies the matching, since we can treat /fu/bar as **/fu/bar
 	if !p._anchored {
@@ -248,17 +248,17 @@ func (p *pattern) any(tokens []*Token) Pattern {
 	}
 
 	// store the tokens
-	return &wildcard{*p, _tokens}
+	return &any{*p, _tokens}
 } // any()
 
-// Match returns true if the given path matches the wildcard pattern. If the
+// Match returns true if the given path matches the any pattern. If the
 // pattern is meant for directories only, and the path is not a directory,
 // Match will return false. The matching is performed by recursively applying
 // fnmatch() with flags set to FNM_PATHNAME. It is assumed path is relative to
 // the base path of the owning GitIgnore.
-func (w *wildcard) Match(path string, isdir bool) bool {
+func (a *any) Match(path string, isdir bool) bool {
 	// are we expecting a directory?
-	if w._directory && !isdir {
+	if a._directory && !isdir {
 		return false
 	}
 
@@ -266,12 +266,12 @@ func (w *wildcard) Match(path string, isdir bool) bool {
 	_parts := strings.Split(path, string(_SEPARATOR))
 
 	// attempt to match the parts against the pattern tokens
-	return w.match(_parts, w._tokens)
+	return a.match(_parts, a._tokens)
 } // Match()
 
-// match performs the recursive matching for wildcard patterns. A wildcard
+// match performs the recursive matching for 'any' patterns. An 'any'
 // token '**' may match any path component, or no path component.
-func (w *wildcard) match(path []string, tokens []*Token) bool {
+func (a *any) match(path []string, tokens []*Token) bool {
 	// if we have no more tokens, then we have matched this path
 	// if there are also no more path elements, otherwise there's no match
 	if len(tokens) == 0 {
@@ -286,13 +286,13 @@ func (w *wildcard) match(path []string, tokens []*Token) bool {
 		// dependent on the tokens that follow
 
 		// do the remaining tokens match the existing path?
-		if w.match(path, tokens[1:]) {
+		if a.match(path, tokens[1:]) {
 			return true
 
 		} else if len(path) != 0 {
 			// attempt to match the existing tokens against the
 			// rest of the path
-			return w.match(path[1:], tokens)
+			return a.match(path[1:], tokens)
 		}
 
 	default:
@@ -302,7 +302,7 @@ func (w *wildcard) match(path []string, tokens []*Token) bool {
 			// we match if the remainder of the path matches the
 			// remaining tokens
 			if fnmatch.Match(_token.Token(), path[0], fnmatch.FNM_PATHNAME) {
-				return w.match(path[1:], tokens[1:])
+				return a.match(path[1:], tokens[1:])
 			}
 		}
 	}
@@ -314,4 +314,4 @@ func (w *wildcard) match(path []string, tokens []*Token) bool {
 // ensure the patterns confirm to the Pattern interface
 var _ Pattern = &name{}
 var _ Pattern = &path{}
-var _ Pattern = &wildcard{}
+var _ Pattern = &any{}

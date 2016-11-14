@@ -36,6 +36,9 @@ func NewLexer(r io.Reader) Lexer {
 // encountered, it will be returned as an Error instance, detailing the error
 // and its position within the stream.
 func (l *lexer) Next() (*Token, Error) {
+	// are we at the beginning of the line?
+	_beginning := l.beginning()
+
 	// read the next rune
 	_r, _err := l.read()
 	if _err != nil {
@@ -45,7 +48,7 @@ func (l *lexer) Next() (*Token, Error) {
 	switch _r {
 	// end of file
 	case _EOF:
-		return l.token(EOF, nil), nil
+		return l.token(EOF, nil, nil)
 
 	// whitespace ' ', '\t'
 	case _SPACE:
@@ -53,7 +56,7 @@ func (l *lexer) Next() (*Token, Error) {
 	case _TAB:
 		l.unread(_r)
 		_rtn, _err := l.whitespace()
-		return l.token(WHITESPACE, _rtn), _err
+		return l.token(WHITESPACE, _rtn, _err)
 
 	// end of line '\n' or '\r\n'
 	case _CR:
@@ -61,21 +64,11 @@ func (l *lexer) Next() (*Token, Error) {
 	case _NEWLINE:
 		l.unread(_r)
 		_rtn, _err := l.eol()
-		return l.token(EOL, _rtn), _err
-
-	// comment '#'
-	case _COMMENT:
-		l.unread(_r)
-		_rtn, _err := l.comment()
-		return l.token(COMMENT, _rtn), _err
+		return l.token(EOL, _rtn, _err)
 
 	// separator '/'
 	case _SEPARATOR:
-		return l.token(SEPARATOR, []rune{_r}), nil
-
-	// negation '!'
-	case _NEGATION:
-		return l.token(NEGATION, []rune{_r}), nil
+		return l.token(SEPARATOR, []rune{_r}, nil)
 
 	// any '**'
 	case _WILDCARD:
@@ -87,31 +80,44 @@ func (l *lexer) Next() (*Token, Error) {
 		} else if _next == _WILDCARD {
 			// we know read() will succeed here since we used peek() above
 			l.read()
-			return l.token(ANY, []rune{_WILDCARD, _WILDCARD}), nil
+			return l.token(ANY, []rune{_WILDCARD, _WILDCARD}, nil)
 		}
 
 		// otherwise, return the wildcard token
-		return l.token(WILDCARD, []rune{_r}), nil
+		return l.token(WILDCARD, []rune{_r}, nil)
+
+	// comment '#'
+	case _COMMENT:
+		l.unread(_r)
+
+		// if we are at the start of the line, then we treat this as a comment
+		if _beginning {
+			_rtn, _err := l.comment()
+			return l.token(COMMENT, _rtn, _err)
+		}
+
+		// otherwise, we regard this as a pattern
+		_rtn, _err := l.pattern()
+		return l.token(PATTERN, _rtn, _err)
+
+	// negation '!'
+	case _NEGATION:
+		if _beginning {
+			return l.token(NEGATION, []rune{_r}, nil)
+		}
+		fallthrough
 
 	// pattern
 	default:
 		l.unread(_r)
 		_rtn, _err := l.pattern()
-		// if we have an empty pattern, then skip to the next token
-		//      - this can happen when we encounter a line continuation
-		//        at the end of a pattern, followed immediately by a
-		//        blank line
-		if len(_rtn) == 0 && _err == nil {
-			return l.Next()
-		} else {
-			return l.token(PATTERN, _rtn), _err
-		}
+		return l.token(PATTERN, _rtn, _err)
 	}
 } // Next()
 
 // Position returns the current position of the Lexer.
 func (l *lexer) Position() Position {
-	return NewPosition(l._line, l._column, l._offset)
+	return NewPosition("", l._line, l._column, l._offset)
 } // Position()
 
 // String returns the string representation of the current position of the
@@ -157,21 +163,26 @@ func (l *lexer) read() (rune, Error) {
 // read again. The runes are returned in the order given, so the last rune
 // specified will be the next rune read from the stream.
 func (l *lexer) unread(r ...rune) {
-	// do we have an runes to "unread"
-	_length := len(r)
-	if _length == 0 {
-		return
+	// ignore EOF runes
+	_r := make([]rune, 0)
+	for _, _rune := range r {
+		if _rune != _EOF {
+			_r = append(_r, _rune)
+		}
 	}
 
 	// initialise the unread rune list if necessary
 	if l._unread == nil {
 		l._unread = make([]rune, 0)
 	}
-	l._unread = append(l._unread, r...)
+	if len(_r) != 0 {
+		l._unread = append(l._unread, _r...)
+	}
 
 	// decrement the offset and column counts
 	//      - we have to take care of column being 0
-	//      - NOTE: this won't unwind indefinitely
+	//      - at present we can only unwind across a single line boundary
+	_length := len(_r)
 	for ; _length > 0; _length-- {
 		l._offset--
 		if l._column == 1 {
@@ -275,7 +286,7 @@ func (l *lexer) escape() ([]rune, Error) {
 func (l *lexer) eol() ([]rune, Error) {
 	// read the to the end of the line
 	//      - we should only be called here when we encounter an end of line
-	//        sequence or a comment
+	//        sequence
 	_line := make([]rune, 0, 1)
 
 	// loop until there's nothing more to do
@@ -293,21 +304,21 @@ func (l *lexer) eol() ([]rune, Error) {
 
 		// carriage return - we expect to see a newline next
 		case _CR:
-			_peek, _err := l.peek()
+			_line = append(_line, _next)
+			_next, _err = l.read()
 			if _err != nil {
 				return _line, _err
-			} else if _peek != _NEWLINE {
+			} else if _next != _NEWLINE {
+				l.unread(_next)
 				return _line, l.err(CarriageReturnError)
 			}
+			fallthrough
 
 		// newline
 		case _NEWLINE:
 			_line = append(_line, _next)
 			return _line, nil
 		}
-
-		// otherwise, add this rune to the line
-		_line = append(_line, _next)
 	}
 } // eol()
 
@@ -376,11 +387,10 @@ func (l *lexer) pattern() ([]rune, Error) {
 		case _SEPARATOR:
 			fallthrough
 		case _WILDCARD:
-			fallthrough
-		case _EOF:
 			// return this rune to the lexer
 			l.unread(_next)
-
+			fallthrough
+		case _EOF:
 			// return what we have
 			return _pattern, nil
 
@@ -389,20 +399,10 @@ func (l *lexer) pattern() ([]rune, Error) {
 			_escape, _err := l.escape()
 			if _err != nil {
 				return _pattern, _err
-
-				// if we have an empty escape sequence, then we're at
-				// the end of the line, so we can ignore the continuation
-			} else if _escape == nil {
-				l.newline()
-				continue
 			}
 
-			// otherwise, the escape sequence is part of the pattern
+			// add the escape sequence as part of the pattern
 			_pattern = append(_pattern, _escape...)
-
-		// comment character - this is an error
-		case _COMMENT:
-			return _pattern, l.err(IllegalRuneError)
 
 		// any other character, we add to the pattern
 		default:
@@ -412,14 +412,19 @@ func (l *lexer) pattern() ([]rune, Error) {
 } // pattern()
 
 // token returns a Token instance of the given type_ represented by word runes.
-func (l *lexer) token(type_ TokenType, word []rune) *Token {
+func (l *lexer) token(type_ TokenType, word []rune, e Error) (*Token, Error) {
+	// if we have an error, then we return a BAD token
+	if e != nil {
+		type_ = BAD
+	}
+
 	// extract the lexer position
 	//      - the column is taken from the current column position
 	//        minus the length of the consumed "word"
 	_word := len(word)
 	_column := l._column - _word
 	_offset := l._offset - _word
-	position := NewPosition(l._line, _column, _offset)
+	position := NewPosition("", l._line, _column, _offset)
 
 	// if this is a newline token, we adjust the line & column counts
 	if type_ == EOL {
@@ -427,7 +432,7 @@ func (l *lexer) token(type_ TokenType, word []rune) *Token {
 	}
 
 	// return the Token
-	return NewToken(type_, word, position)
+	return NewToken(type_, word, position), e
 } // token()
 
 // err returns an Error encapsulating the error e and the current Lexer
@@ -440,6 +445,11 @@ func (l *lexer) err(e error) Error {
 		return NewError(e, l.Position())
 	}
 } // err()
+
+// beginning returns true if the Lexer is at the start of a new line.
+func (l *lexer) beginning() bool {
+	return l._column == 1
+} // beginning()
 
 // ensure the lexer conforms to the lexer interface
 var _ Lexer = &lexer{}
