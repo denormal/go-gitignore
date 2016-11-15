@@ -7,25 +7,16 @@ import (
 type TokenType int
 
 const (
-	// this must be the first token type
 	ILLEGAL TokenType = iota
-
 	EOF
 	EOL
 	WHITESPACE
-
 	COMMENT
-
 	SEPARATOR
-
 	NEGATION
-
 	PATTERN
-
 	WILDCARD
 	ANY
-
-	// this must be the last token type
 	BAD
 )
 

@@ -10,7 +10,7 @@ type Position struct {
 	Line   int
 	Column int
 	Offset int
-} // Position{}
+}
 
 // NewPosition returns the Position instance for the given line, column, and
 // rune offset.

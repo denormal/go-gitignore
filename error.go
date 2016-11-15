@@ -1,12 +1,10 @@
 package gitignore
 
-// Error is the interface for errors
 type Error interface {
 	error
 	Position() Position
-	//	Is(error) bool
 	Underlying() error
-} // Error()
+}
 
 // err extends the standard error to include a Position within the parsed
 // .gitignore file

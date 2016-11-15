@@ -11,9 +11,9 @@ import (
 // use an empty GitIgnore for cached lookups
 var empty = &ignore{}
 
-// GitIgnore is the interface to .gitignore files. It provides methods for
-// testing files for matching the .gitignore file, and then determining
-// whether a file should be ignored or included.
+// GitIgnore is the interface to .gitignore files and repositories. It defines
+// methods for testing files for matching the .gitignore file, and then
+// determining whether a file should be ignored or included.
 type GitIgnore interface {
 	Base() string
 
@@ -23,16 +23,14 @@ type GitIgnore interface {
 
 	Ignore(string) bool
 	Include(string) bool
-} // GitIgnore{}
+}
 
-// ignore is the implementation of the .gitignore file, containing the base
-// path f the file, as well as the ordered list of patterns contained in the
-// file
+// ignore is the implementation of a .gitignore file.
 type ignore struct {
 	_base    string
 	_pattern []Pattern
 	_errors  func(Error) bool
-} // ignore()
+}
 
 // NewGitIgnore creates a new GitIgnore instance from the patterns listed in t,
 // representing a .gitignore file in the base directory. If errors is given, it
@@ -82,12 +80,11 @@ func NewFromFile(file string) (GitIgnore, error) {
 	return _ignore, nil
 } // NewFromFile()
 
-// NewWithErrors creates a GitIgnore instance from the given file. An error
-// will be returned if file cannot be opened or its absolute path determined.
+// NewWithErrors creates a GitIgnore instance from the given file.
 // If errors is given, it will be invoked for every error encountered when
 // parsing the .gitignore patterns. Parsing will terminate if errors is called
 // and returns false, otherwise, parsing will continue until end of file has
-// been reached.
+// been reached. NewWithErrors returns nil if the .gitignore could not be read.
 func NewWithErrors(file string, errors func(Error) bool) GitIgnore {
 	var _err error
 
@@ -137,7 +134,7 @@ func NewWithErrors(file string, errors func(Error) bool) GitIgnore {
 // instance will be returned from the cache rather than being reloaded. If
 // cache is not defined, NewWithCache will behave as NewWithErrors
 //
-// If NewWithErrors returns an error, NewWithCache will store an empty
+// If NewWithErrors returns nil, NewWithCache will store an empty
 // GitIgnore (i.e. no patterns) against the file to prevent repeated parse
 // attempts on subsequent requests for the same file. Subsequent calls to
 // NewWithCache for a file that could not be loaded due to an error will
@@ -194,7 +191,9 @@ func (i *ignore) Base() string {
 // matched by a GitIgnore pattern, its Match will be returned. Match will
 // invoke the error handler (if defined) if its not possible to determine the
 // absolute path of the given path, or if its not possible to determine if the
-// path represents a file or a directory. If an error occurs, Match returns nil.
+// path represents a file or a directory. If an error occurs, Match returns nil
+// and the error handler (if defined via New, NewWithErrors or NewWithCache)
+// will be invoked.
 func (i *ignore) Match(path string) Match {
 	// ensure we have the absolute path for the given file
 	_path, _err := filepath.Abs(path)
@@ -253,7 +252,8 @@ func (i *ignore) Relative(path string, isdir bool) Match {
 } // Relative()
 
 // Ignore returns true if the path is ignored by this GitIgnore. Paths that are
-// not matched by this GitIgnore are not ignored.
+// not matched by this GitIgnore are not ignored. Internally, Ignore uses
+// Match, and will return false if Match() returns nil for path.
 func (i *ignore) Ignore(path string) bool {
 	_match := i.Match(path)
 	if _match != nil {
@@ -265,7 +265,8 @@ func (i *ignore) Ignore(path string) bool {
 } // Ignore()
 
 // Include returns true if the path is included by this GitIgnore. Paths that
-// are not matched by this GitIgnore are always included.
+// are not matched by this GitIgnore are always included. Internally, Include
+// uses Match, and will return true if Match() returns nil for path.
 func (i *ignore) Include(path string) bool {
 	_match := i.Match(path)
 	if _match != nil {
@@ -276,5 +277,5 @@ func (i *ignore) Include(path string) bool {
 	return true
 } // Include()
 
-// ensure ignore satisfies the GitIgnore interface
+// ensure Ignore satisfies the GitIgnore interface
 var _ GitIgnore = &ignore{}

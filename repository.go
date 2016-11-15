@@ -8,6 +8,8 @@ import (
 
 const File = ".gitignore"
 
+// repository is the implementation of the set of .gitignore files within a
+// repository hierarchy
 type repository struct {
 	ignore
 	_errors func(e Error) bool
@@ -15,10 +17,22 @@ type repository struct {
 	_file   string
 } // repository{}
 
+// NewRepository returns a GitIgnore instance representing a git repository
+// with root directory base. If base is not a directory, or base cannot be
+// read, NewRepository will return an error.
+//
+// Internally, NewRepository uses NewRepositoryWithFile.
 func NewRepository(base string) (GitIgnore, error) {
 	return NewRepositoryWithFile(base, File)
 } // NewRepository()
 
+// NewRepositoryWithFile returns a GitIgnore instance representing a git
+// repository with root directory base. The repository will use file as
+// the name of the files within the repository from which to load the
+// .gitignore patterns. If file is the empty string, NewRepositoryWithFile
+// uses ".gitignore".
+//
+// Internally, NewRepositoryWithFile uses NewRepositoryWithErrors.
 func NewRepositoryWithFile(base, file string) (GitIgnore, error) {
 	// define an error handler to catch any file access errors
 	//		- record the first encountered error
@@ -44,14 +58,35 @@ func NewRepositoryWithFile(base, file string) (GitIgnore, error) {
 
 	// otherwise, we ignore the parser errors
 	return _repository, nil
-
-	//return NewRepositoryWithErrors(base, file, nil)
 } // NewRepositoryWithFile()
 
+// NewRepositoryWithErrors returns a GitIgnore instance representing a git
+// repository with a root directory base. As with NewRepositoryWithFile, file
+// specifies the name of the files within the repository containing the
+// .gitignore patterns, and defaults to ".gitignore" if file is not specified.
+//
+// If errors is given, it will be invoked for each error encountered while
+// matching a path against the repository GitIgnore (such as file permission
+// denied, or errors during .gitignore parsing). See Match below.
+//
+// Internally, NewRepositoryWithErrors uses NewRepositoryWithCache.
 func NewRepositoryWithErrors(base, file string, errors func(e Error) bool) GitIgnore {
 	return NewRepositoryWithCache(base, file, NewCache(), errors)
 } // NewRepositoryWithErrors()
 
+// NewRepositoryWithCache returns a GitIgnore instance representing a git
+// repository with a root directory base. As with NewRepositoryWithErrors,
+// file specifies the name of the files within the repository containing the
+// .gitignore patterns, and defaults to ".gitignore" if file is not specified.
+//
+// NewRepositoryWithCache will attempt to load each .gitignore within the
+// repository only once, using NewWithCache to store the corresponding
+// GitIgnore instance in cache. If cache is given as nil,
+// NewRepositoryWithCache will create a Cache instance for this repository.
+//
+// If errors is given, it will be invoked for each error encountered while
+// matching a path against the repository GitIgnore (such as file permission
+// denied, or errors during .gitignore parsing). See Match below.
 func NewRepositoryWithCache(base, file string, cache Cache, errors func(e Error) bool) GitIgnore {
 	// do we have an error handler?
 	_errors := errors
@@ -95,11 +130,26 @@ func NewRepositoryWithCache(base, file string, cache Cache, errors func(e Error)
 	return _repository
 } // NewRepositoryWithCache()
 
-// Match attempts to match the path against this repository. If the path is
-// matched by a repository pattern, its Match will be returned. Match will
-// return an error if its not possible to determine the absolute path of the
-// given path, or if its not possible to determine if the path represents a
-// file or a directory.
+// Match attempts to match the path against this repository. Matching proceeds
+// according to normal gitignore rules, where .gtignore files in the same
+// directory as path, take precedence over .gitignore files higher up the
+// path hierarchy, and child files and directories are ignored if the parent
+// is ignored. If the path is matched by a gitignore pattern in the repository,
+// a Match is returned detailing the matched pattern. The returned Match
+// can be used to determine if the path should be ignored or included according
+// to the repository.
+//
+// If an error is encountered during matching, the repository error handler
+// (if configured via NewRepositoryWithErrors or NewRepositoryWithCache), will
+// be called. If the error handler returns false, matching will terminate and
+// Match will return nil. If handler returns true, Match will continue
+// processing in an attempt to match path.
+//
+// Match will raise an error and return nil if the absolute path cannot be
+// determined, or if its not possible to determine if path represents a file
+// or a directory.
+//
+// If path is not located under the root of this repository, Match returns nil.
 func (r *repository) Match(path string) Match {
 	// ensure we have the absolute path for the given file
 	_path, _err := filepath.Abs(path)
@@ -190,3 +240,6 @@ func (r *repository) Relative(path string, isdir bool) Match {
 		_local = _last + string(_SEPARATOR) + _local
 	}
 } // Relative()
+
+// ensure repository satisfies the GitIgnore interface
+var _ GitIgnore = &repository{}

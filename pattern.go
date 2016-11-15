@@ -11,7 +11,7 @@ import (
 type Pattern interface {
 	Match
 	Match(string, bool) bool
-} // Pattern{}
+}
 
 // pattern is the base implementation of a .gitignore pattern
 type pattern struct {
@@ -43,14 +43,14 @@ type any struct {
 	_tokens []*Token
 } // any{}
 
-// NewPattern returns a Pattern from the ordered set of Tokens. The tokens are
+// NewPattern returns a Pattern from the ordered slice of Tokens. The tokens are
 // assumed to represent a well-formed .gitignore pattern. A Pattern may be
 // negated, anchored to the start of the path (relative to the base directory
 // of tie containing .gitignore), or match directories only.
 func NewPattern(tokens []*Token) Pattern {
 	// extract the pattern position from first token
 	_position := tokens[0].Position
-	_string := Tokens(tokens).String()
+	_string := tokenset(tokens).String()
 
 	// is this a negated pattern?
 	_negated := false
@@ -75,7 +75,7 @@ func NewPattern(tokens []*Token) Pattern {
 	}
 
 	// build the pattern expression
-	_fnmatch := Tokens(tokens).String()
+	_fnmatch := tokenset(tokens).String()
 	_pattern := &pattern{
 		_negated:   _negated,
 		_anchored:  _anchored,

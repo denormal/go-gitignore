@@ -5,12 +5,7 @@ import (
 )
 
 var (
-	// define the standard lexer errors
-	CarriageReturnError = errors.New("unexpected carriage return '\\r'")
-
-	// define the standard parser errors
-	InvalidPatternError = errors.New("invalid pattern")
-
-	// define the standard repository errors
+	CarriageReturnError   = errors.New("unexpected carriage return '\\r'")
+	InvalidPatternError   = errors.New("invalid pattern")
 	InvalidDirectoryError = errors.New("invalid directory")
 )
