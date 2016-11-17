@@ -7,7 +7,7 @@ matching paths against the retrieved patterns. Path matching is done using
 [git](https://git-scm.com/docs/gitignore), with
 support for recursive matching via the `**` pattern.
 
-```golang
+```go
 import "github.com/denormal/go-gitignore"
 
 // match a file against a particular .gitignore
@@ -75,7 +75,7 @@ Two consecutive asterisks `**` in patterns matched against full pathname may hav
 
 `go-gitignore` can be installed using the standard Go approach:
 
-```golang
+```go
 go get github.com/denormal/go-gitignore
 ```
 
