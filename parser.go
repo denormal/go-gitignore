@@ -7,8 +7,20 @@ import (
 // Parser is the interface for parsing .gitignore files and extracting the set
 // of patterns specified in the .gitignore file.
 type Parser interface {
+	// Parse returns all well-formed .gitignore Patterns contained within the
+	// parser stream. Parsing will terminate at the end of the stream, or if
+	// the parser error handler returns false.
 	Parse() []Pattern
+
+	// Next returns the next well-formed .gitignore Pattern from the parser
+	// stream.  If an error is encountered, and the error handler is either
+	// not defined, or returns true, Next will skip to the end of the current
+	// line and attempt to parse the next Pattern. If the error handler
+	// returns false, or the parser reaches the end of the stream, Next
+	// returns nil.
 	Next() Pattern
+
+	// Position returns the current position of the parser in the input stream.
 	Position() Position
 } // Parser{}
 
@@ -19,15 +31,17 @@ type parser struct {
 	_error func(Error) bool
 } // parser{}
 
-// NewParser returns a new Parser instance for the given stream r, for a
-// .gitignore file located in the base directory. If err is not nil, it will be
-// called for every error encountered during parsing.
+// NewParser returns a new Parser instance for the given stream r.
+// If err is not nil, it will be called for every error encountered during
+// parsing. Parsing will terminate at the end of the stream, or if err
+// returns false.
 func NewParser(r io.Reader, err func(Error) bool) Parser {
 	return &parser{_lexer: NewLexer(r), _error: err}
 } // NewParser()
 
 // Parse returns all well-formed .gitignore Patterns contained within the
-// parser stream.
+// parser stream. Parsing will terminate at the end of the stream, or if
+// the parser error handler returns false.
 func (p *parser) Parse() []Pattern {
 	// keep parsing until there's no more patterns
 	_patterns := make([]Pattern, 0)
@@ -46,11 +60,6 @@ func (p *parser) Parse() []Pattern {
 // parse the next Pattern. If the error handler returns false, or the parser
 // reaches the end of the stream, Next returns nil.
 func (p *parser) Next() Pattern {
-	// we will attempt to return the next pattern from the lexer
-	//      - each pattern is contained within a single line
-	//        where a "line" may span multiple text lines through the
-	//        use of the trailing escape '\'
-
 	// keep searching until we find the next pattern, or until we
 	// reach the end of the file
 	for {

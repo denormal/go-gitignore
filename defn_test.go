@@ -168,26 +168,26 @@ git-sample-3/foo/*
 var (
 	// define the positions of the bad patterns
 	_GITBADPOSITION = []gitignore.Position{
-		gitignore.NewPosition("", 17, 19, 189),
-		gitignore.NewPosition("", 18, 14, 219),
-		gitignore.NewPosition("", 19, 8, 233),
-		gitignore.NewPosition("", 20, 8, 248),
+		gitignore.Position{"", 17, 19, 189},
+		gitignore.Position{"", 18, 14, 219},
+		gitignore.Position{"", 19, 8, 233},
+		gitignore.Position{"", 20, 8, 248},
 	}
 
 	// define the positions of the good patterns
 	_GITPOSITION = []gitignore.Position{
-		gitignore.NewPosition("", 4, 1, 23),
-		gitignore.NewPosition("", 6, 1, 30),
-		gitignore.NewPosition("", 7, 1, 34),
-		gitignore.NewPosition("", 9, 1, 39),
-		gitignore.NewPosition("", 12, 1, 104),
-		gitignore.NewPosition("", 13, 1, 132),
-		gitignore.NewPosition("", 15, 1, 150),
-		gitignore.NewPosition("", 22, 1, 256),
-		gitignore.NewPosition("", 23, 1, 280),
-		gitignore.NewPosition("", 25, 1, 283),
-		gitignore.NewPosition("", 26, 1, 295),
-		gitignore.NewPosition("", 27, 1, 317),
+		gitignore.Position{"", 4, 1, 23},
+		gitignore.Position{"", 6, 1, 30},
+		gitignore.Position{"", 7, 1, 34},
+		gitignore.Position{"", 9, 1, 39},
+		gitignore.Position{"", 12, 1, 104},
+		gitignore.Position{"", 13, 1, 132},
+		gitignore.Position{"", 15, 1, 150},
+		gitignore.Position{"", 22, 1, 256},
+		gitignore.Position{"", 23, 1, 280},
+		gitignore.Position{"", 25, 1, 283},
+		gitignore.Position{"", 26, 1, 295},
+		gitignore.Position{"", 27, 1, 317},
 	}
 
 	// define the token stream for the _GITIGNORE .gitignore
@@ -535,7 +535,7 @@ var (
 	}
 
 	// define the beginning position for the parser & lexer
-	_BEGINNING = gitignore.NewPosition("", 1, 1, 0)
+	_BEGINNING = gitignore.Position{"", 1, 1, 0}
 
 	// define the tokens from the invalid .gitignore above
 	_TOKENSINVALID = []token{

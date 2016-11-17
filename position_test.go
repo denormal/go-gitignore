@@ -8,9 +8,9 @@ import (
 func TestPosition(t *testing.T) {
 	// test the conversion of Positions to strings
 	for _, _p := range _POSITIONS {
-		_position := gitignore.NewPosition(
+		_position := gitignore.Position{
 			_p.File, _p.Line, _p.Column, _p.Offset,
-		)
+		}
 
 		// ensure the string representation of the Position is as expected
 		_rtn := _position.String()

@@ -15,14 +15,38 @@ var empty = &ignore{}
 // methods for testing files for matching the .gitignore file, and then
 // determining whether a file should be ignored or included.
 type GitIgnore interface {
+	// Base returns the directory containing the .gitignore file.
 	Base() string
 
-	Match(string) Match
-	Absolute(string, bool) Match
-	Relative(string, bool) Match
+	// Match attempts to match the path against this GitIgnore, and will
+	// return its Match if successful. Match will invoke the GitIgnore error
+	// handler (if defined) if it is not possible to determine the absolute
+	// path of the given path, or if its not possible to determine if the
+	// path represents a file or a directory. If an error occurs, Match
+	// returns nil and the error handler (if defined via New, NewWithErrors
+	// or NewWithCache) will be invoked.
+	Match(path string) Match
 
-	Ignore(string) bool
-	Include(string) bool
+	// Absolute attempts to match an absolute path against this GitIgnore. If
+	// the path is not located under the base directory of this GitIgnore, or
+	// is not matched by this GitIgnore, nil is returned.
+	Absolute(string, bool) Match
+
+	// Relative attempts to match a path relative to the GitIgnore base
+	// directory. isdir is used to indicate whether the path represents a file
+	// or a directory. If the path is not matched by the GitIgnore, nil is
+	// returned.
+	Relative(path string, isdir bool) Match
+
+	// Ignore returns true if the path is ignored by this GitIgnore. Paths
+	// that are not matched by this GitIgnore are not ignored. Internally,
+	// Ignore uses Match, and will return false if Match() returns nil for path.
+	Ignore(path string) bool
+
+	// Include returns true if the path is included by this GitIgnore. Paths
+	// that are not matched by this GitIgnore are always included. Internally,
+	// Include uses Match, and will return true if Match() returns nil for path.
+	Include(path string) bool
 }
 
 // ignore is the implementation of a .gitignore file.
@@ -187,13 +211,13 @@ func (i *ignore) Base() string {
 	return i._base
 } // Base()
 
-// Match attempts to match the path against this GitIgnore. If the path is
-// matched by a GitIgnore pattern, its Match will be returned. Match will
-// invoke the error handler (if defined) if its not possible to determine the
-// absolute path of the given path, or if its not possible to determine if the
-// path represents a file or a directory. If an error occurs, Match returns nil
-// and the error handler (if defined via New, NewWithErrors or NewWithCache)
-// will be invoked.
+// Match attempts to match the path against this GitIgnore, and will
+// return its Match if successful. Match will invoke the GitIgnore error
+// handler (if defined) if it is not possible to determine the absolute
+// path of the given path, or if its not possible to determine if the
+// path represents a file or a directory. If an error occurs, Match
+// returns nil and the error handler (if defined via New, NewWithErrors
+// or NewWithCache) will be invoked.
 func (i *ignore) Match(path string) Match {
 	// ensure we have the absolute path for the given file
 	_path, _err := filepath.Abs(path)
@@ -214,9 +238,9 @@ func (i *ignore) Match(path string) Match {
 	return i.Absolute(_path, _isdir)
 } // Match()
 
-// Absolute attempts to match an absolute path against this GitIgnore. If the
-// path is not located under the base directory of this GitIgnore, or is not
-// matched by this GitIgnore, nil is returned.
+// Absolute attempts to match an absolute path against this GitIgnore. If
+// the path is not located under the base directory of this GitIgnore, or
+// is not matched by this GitIgnore, nil is returned.
 func (i *ignore) Absolute(path string, isdir bool) Match {
 	// does the file share the same directory as this ignore file?
 	if !strings.HasPrefix(path, i._base) {
@@ -229,8 +253,10 @@ func (i *ignore) Absolute(path string, isdir bool) Match {
 	return i.Relative(_rel, isdir)
 } // Absolute()
 
-// Relative attempts to match a path relative to the GitIgnore base directory.
-// If the path is not matched by the GitIgnore, nil is returned.
+// Relative attempts to match a path relative to the GitIgnore base
+// directory. isdir is used to indicate whether the path represents a file
+// or a directory. If the path is not matched by the GitIgnore, nil is
+// returned.
 func (i *ignore) Relative(path string, isdir bool) Match {
 	// if we are on Windows, then translate the path to Unix form
 	_rel := path
@@ -251,9 +277,9 @@ func (i *ignore) Relative(path string, isdir bool) Match {
 	return nil
 } // Relative()
 
-// Ignore returns true if the path is ignored by this GitIgnore. Paths that are
-// not matched by this GitIgnore are not ignored. Internally, Ignore uses
-// Match, and will return false if Match() returns nil for path.
+// Ignore returns true if the path is ignored by this GitIgnore. Paths
+// that are not matched by this GitIgnore are not ignored. Internally,
+// Ignore uses Match, and will return false if Match() returns nil for path.
 func (i *ignore) Ignore(path string) bool {
 	_match := i.Match(path)
 	if _match != nil {
@@ -264,9 +290,9 @@ func (i *ignore) Ignore(path string) bool {
 	return false
 } // Ignore()
 
-// Include returns true if the path is included by this GitIgnore. Paths that
-// are not matched by this GitIgnore are always included. Internally, Include
-// uses Match, and will return true if Match() returns nil for path.
+// Include returns true if the path is included by this GitIgnore. Paths
+// that are not matched by this GitIgnore are always included. Internally,
+// Include uses Match, and will return true if Match() returns nil for path.
 func (i *ignore) Include(path string) bool {
 	_match := i.Match(path)
 	if _match != nil {

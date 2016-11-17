@@ -21,11 +21,18 @@ type lexer struct {
 
 // Lexer is the interface to the lexical analyser for .gitignore files
 type Lexer interface {
+	// Next returns the next Token from the Lexer reader. If an error is
+	// encountered, it will be returned as an Error instance, detailing the
+	// error and its position within the stream.
 	Next() (*Token, Error)
 
+	// Position returns the current position of the Lexer.
 	Position() Position
+
+	// String returns the string representation of the current position of the
+	// Lexer.
 	String() string
-} // Lexer{}
+}
 
 // NewLexer returns a Lexer instance for the io.Reader r.
 func NewLexer(r io.Reader) Lexer {
@@ -117,7 +124,7 @@ func (l *lexer) Next() (*Token, Error) {
 
 // Position returns the current position of the Lexer.
 func (l *lexer) Position() Position {
-	return NewPosition("", l._line, l._column, l._offset)
+	return Position{"", l._line, l._column, l._offset}
 } // Position()
 
 // String returns the string representation of the current position of the
@@ -424,7 +431,7 @@ func (l *lexer) token(type_ TokenType, word []rune, e Error) (*Token, Error) {
 	_word := len(word)
 	_column := l._column - _word
 	_offset := l._offset - _word
-	position := NewPosition("", l._line, _column, _offset)
+	position := Position{"", l._line, _column, _offset}
 
 	// if this is a newline token, we adjust the line & column counts
 	if type_ == EOL {

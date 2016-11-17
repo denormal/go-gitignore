@@ -6,15 +6,19 @@ import (
 
 // Cache is the interface for the GitIgnore cache
 type Cache interface {
-	Set(string, GitIgnore)
-	Get(string) GitIgnore
-} // Cache{}
+	// Set stores the GitIgnore ignore against its path.
+	Set(path string, ig GitIgnore)
+
+	// Get attempts to retrieve an GitIgnore instance associated with the given
+	// path. If the path is not known nil is returned.
+	Get(path string) GitIgnore
+}
 
 // cache is the default thread-safe cache implementation
 type cache struct {
 	_i    map[string]GitIgnore
 	_lock sync.Mutex
-} // cache{}
+}
 
 // NewCache returns a Cache instance. This is a thread-safe, in-memory cache
 // for GitIgnore instances.

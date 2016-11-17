@@ -136,9 +136,9 @@ func lexer(t *testing.T, lines []string, eol string, tokens []token, e error) {
 			// ensure the token position matches the expected position
 			//		- since we will be testing with different line endings, we
 			//		  have to choose the correct offset
-			_position := gitignore.NewPosition(
+			_position := gitignore.Position{
 				"", _expected.Line, _expected.Column, _expected.NewLine,
-			)
+			}
 			if eol == "\r\n" {
 				_position.Offset = _expected.CarriageReturn
 			}

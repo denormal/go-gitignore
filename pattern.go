@@ -10,6 +10,11 @@ import (
 // Pattern represents per-line patterns within a .gitignore file
 type Pattern interface {
 	Match
+
+	// Match returns true if the given path matches the name pattern. If the
+	// pattern is meant for directories only, and the path is not a directory,
+	// Match will return false. The matching is performed by fnmatch(). It
+	// is assumed path is relative to the base path of the owning GitIgnore.
 	Match(string, bool) bool
 }
 

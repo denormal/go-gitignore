@@ -4,24 +4,14 @@ import (
 	"fmt"
 )
 
-// Position records the position of the .gitignore parser.
+// Position represents the position of the .gitignore parser, and the position
+// of a .gitignore pattern within the parsed stream.
 type Position struct {
 	File   string
 	Line   int
 	Column int
 	Offset int
 }
-
-// NewPosition returns the Position instance for the given line, column, and
-// rune offset.
-func NewPosition(file string, line int, column int, offset int) Position {
-	return Position{
-		File:   file,
-		Line:   line,
-		Column: column,
-		Offset: offset,
-	}
-} // NewPosition()
 
 // String returns a string representation of the current position.
 func (p Position) String() string {
