@@ -47,7 +47,7 @@ func dir(content map[string]string) (string, error) {
 	//		  that is a symbolic link
 	_dir, _err = filepath.EvalSymlinks(_dir)
 	if _err != nil {
-		defer os.Remove(_dir)
+		defer os.RemoveAll(_dir)
 		return "", _err
 	}
 
