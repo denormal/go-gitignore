@@ -3,22 +3,24 @@ package gitignore
 import (
 	"os"
 	"path/filepath"
-
-	"github.com/denormal/go-gittools"
 )
 
 // exclude attempts to return the GitIgnore instance for the
 // $GIT_DIR/info/exclude from the working copy to which path belongs.
 func exclude(path string) (GitIgnore, error) {
 	// attempt to locate GIT_DIR
-	_gitdir, _err := gittools.GitDir(path)
+	_gitdir := os.Getenv("GIT_DIR")
+	if _gitdir == "" {
+		_gitdir = filepath.Join(path, ".git")
+	}
+	_info, _err := os.Stat(_gitdir)
 	if _err != nil {
-		if _err == gittools.MissingWorkingCopyError {
+		if os.IsNotExist(_err) {
 			return nil, nil
 		} else {
 			return nil, _err
 		}
-	} else if _gitdir == "" {
+	} else if !_info.IsDir() {
 		return nil, nil
 	}
 

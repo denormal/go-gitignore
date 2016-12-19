@@ -27,26 +27,28 @@ func (r *repositorytest) create(path string, gitdir bool) (gitignore.GitIgnore, 
 		r.errors = make([]gitignore.Error, 0)
 	}
 
-	// should we create the global exclude file
-	r.gitdir = os.Getenv("GIT_DIR")
-	if gitdir {
-		// create a temporary file for the global exclude file
-		_exclude, _err := exclude(_GITEXCLUDE)
-		if _err != nil {
-			return nil, _err
-		}
+	if r.file == gitignore.File || r.file == "" {
+		// should we create the global exclude file
+		r.gitdir = os.Getenv("GIT_DIR")
+		if gitdir {
+			// create a temporary file for the global exclude file
+			_exclude, _err := exclude(_GITEXCLUDE)
+			if _err != nil {
+				return nil, _err
+			}
 
-		// extract the current value of the GIT_DIR environment variable
-		// and set the value to be that of the temporary file
-		r.exclude = _exclude
-		_err = os.Setenv("GIT_DIR", r.exclude)
-		if _err != nil {
-			return nil, _err
-		}
-	} else {
-		_err := os.Unsetenv("GIT_DIR")
-		if _err != nil {
-			return nil, _err
+			// extract the current value of the GIT_DIR environment variable
+			// and set the value to be that of the temporary file
+			r.exclude = _exclude
+			_err = os.Setenv("GIT_DIR", r.exclude)
+			if _err != nil {
+				return nil, _err
+			}
+		} else {
+			_err := os.Unsetenv("GIT_DIR")
+			if _err != nil {
+				return nil, _err
+			}
 		}
 	}
 
@@ -76,11 +78,13 @@ func (r *repositorytest) destroy() {
 		}
 	}
 
-	// reset the GIT_DIR environment variable
-	if r.gitdir == "" {
-		defer os.Unsetenv("GIT_DIR")
-	} else {
-		defer os.Setenv("GIT_DIR", r.gitdir)
+	if r.file == gitignore.File || r.file == "" {
+		// reset the GIT_DIR environment variable
+		if r.gitdir == "" {
+			defer os.Unsetenv("GIT_DIR")
+		} else {
+			defer os.Setenv("GIT_DIR", r.gitdir)
+		}
 	}
 } // destroy()
 
@@ -339,17 +343,30 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 		)
 	}
 
+	// we need to check each test to see if it's matching against a
+	// GIT_DIR/info/exclude
+	//		- we only do this if the target does not use .gitignore
+	//		  as the name of the ignore file
+	_prepare := func(m match) match {
+		if test.file == "" || test.file == gitignore.File {
+			return m
+		} else if m.Exclude {
+			return match{m.Path, "", false, m.Exclude}
+		} else {
+			return m
+		}
+	} // _prepare()
+
 	// perform the repository matching using absolute paths
 	_cb := func(path string, isdir bool) gitignore.Match {
 		_path := filepath.Join(_repository.Base(), path)
 		return _repository.Absolute(_path, isdir)
 	}
 	for _, _test := range m {
-		do(t, _cb, _test)
+		do(t, _cb, _prepare(_test))
 	}
 
 	// repeat the tests using relative paths
-	//	_repository, _err = test.instance(test.directory)
 	_repository, _err = test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())
@@ -358,7 +375,7 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 		return _repository.Relative(path, isdir)
 	}
 	for _, _test := range m {
-		do(t, _cb, _test)
+		do(t, _cb, _prepare(_test))
 	}
 
 	// perform absolute path tests with paths not under the same repository
@@ -373,7 +390,6 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 	defer os.RemoveAll(_new)
 
 	// first, perform Match() tests
-	//	_repository, _err = test.instance(test.directory)
 	_repository, _err = test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())
@@ -387,7 +403,6 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 	}
 
 	// next, perform Absolute() tests
-	//	_repository, _err = test.instance(test.directory)
 	_repository, _err = test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())
@@ -413,7 +428,6 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 			_new, _err.Error(),
 		)
 	}
-	//	_repository, _err = test.instance(test.directory)
 	_repository, _err = test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())

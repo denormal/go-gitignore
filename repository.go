@@ -31,7 +31,9 @@ func NewRepository(base string) (GitIgnore, error) {
 // repository with root directory base. The repository will use file as
 // the name of the files within the repository from which to load the
 // .gitignore patterns. If file is the empty string, NewRepositoryWithFile
-// uses ".gitignore".
+// uses ".gitignore". If the ignore file name is ".gitignore", the returned
+// GitIgnore instance will also consider patterns listed in
+// $GIT_DIR/info/exclude when performing repository matching.
 //
 // Internally, NewRepositoryWithFile uses NewRepositoryWithErrors.
 func NewRepositoryWithFile(base, file string) (GitIgnore, error) {
@@ -65,6 +67,9 @@ func NewRepositoryWithFile(base, file string) (GitIgnore, error) {
 // repository with a root directory base. As with NewRepositoryWithFile, file
 // specifies the name of the files within the repository containing the
 // .gitignore patterns, and defaults to ".gitignore" if file is not specified.
+// If the ignore file name is ".gitignore", the returned GitIgnore instance
+// will also consider patterns listed in $GIT_DIR/info/exclude when performing
+// repository matching.
 //
 // If errors is given, it will be invoked for each error encountered while
 // matching a path against the repository GitIgnore (such as file permission
@@ -79,6 +84,9 @@ func NewRepositoryWithErrors(base, file string, errors func(e Error) bool) GitIg
 // repository with a root directory base. As with NewRepositoryWithErrors,
 // file specifies the name of the files within the repository containing the
 // .gitignore patterns, and defaults to ".gitignore" if file is not specified.
+// If the ignore file name is ".gitignore", the returned GitIgnore instance
+// will also consider patterns listed in $GIT_DIR/info/exclude when performing
+// repository matching.
 //
 // NewRepositoryWithCache will attempt to load each .gitignore within the
 // repository only once, using NewWithCache to store the corresponding
@@ -114,16 +122,20 @@ func NewRepositoryWithCache(base, file string, cache Cache, errors func(e Error)
 		return nil
 	}
 
-	// attempt to load $GIT_DIR/info/exclude
-	_exclude, _err := exclude(_base)
-	if _err != nil {
-		_errors(NewError(_err, Position{}))
-		return nil
-	}
-
 	// if we haven't been given a base file name, use the default
 	if file == "" {
 		file = File
+	}
+
+	// are we matching .gitignore files?
+	//		- if we are, we also consider $GIT_DIR/info/exclude
+	var _exclude GitIgnore
+	if file == File {
+		_exclude, _err = exclude(_base)
+		if _err != nil {
+			_errors(NewError(_err, Position{}))
+			return nil
+		}
 	}
 
 	// create the repository instance
