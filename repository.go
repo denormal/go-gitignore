@@ -12,9 +12,10 @@ const File = ".gitignore"
 // repository hierarchy
 type repository struct {
 	ignore
-	_errors func(e Error) bool
-	_cache  Cache
-	_file   string
+	_errors  func(e Error) bool
+	_cache   Cache
+	_file    string
+	_exclude GitIgnore
 } // repository{}
 
 // NewRepository returns a GitIgnore instance representing a git repository
@@ -113,6 +114,13 @@ func NewRepositoryWithCache(base, file string, cache Cache, errors func(e Error)
 		return nil
 	}
 
+	// attempt to load $GIT_DIR/info/exclude
+	_exclude, _err := exclude(_base)
+	if _err != nil {
+		_errors(NewError(_err, Position{}))
+		return nil
+	}
+
 	// if we haven't been given a base file name, use the default
 	if file == "" {
 		file = File
@@ -121,10 +129,11 @@ func NewRepositoryWithCache(base, file string, cache Cache, errors func(e Error)
 	// create the repository instance
 	_ignore := ignore{_base: _base}
 	_repository := &repository{
-		ignore:  _ignore,
-		_errors: _errors,
-		_cache:  cache,
-		_file:   file,
+		ignore:   _ignore,
+		_errors:  _errors,
+		_exclude: _exclude,
+		_cache:   cache,
+		_file:    file,
 	}
 
 	return _repository
@@ -227,7 +236,7 @@ func (r *repository) Relative(path string, isdir bool) Match {
 		// if there's no parent, then we're done
 		//		- since we use filepath.Clean() we look for "."
 		if _parent == "." {
-			return nil
+			break
 		}
 
 		// we don't have a match for this file, so we progress up the
@@ -239,6 +248,14 @@ func (r *repository) Relative(path string, isdir bool) Match {
 		_parent = filepath.Clean(_parent)
 		_local = _last + string(_SEPARATOR) + _local
 	}
+
+	// do we have a global exclude file? (i.e. GIT_DIR/info/exclude)
+	if r._exclude != nil {
+		return r._exclude.Relative(path, isdir)
+	}
+
+	// we have no match
+	return nil
 } // Relative()
 
 // ensure repository satisfies the GitIgnore interface

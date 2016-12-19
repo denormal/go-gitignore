@@ -115,6 +115,31 @@ func dir(content map[string]string) (string, error) {
 	return _dir, nil
 } // dir()
 
+func exclude(content string) (string, error) {
+	// create a temporary folder with the info/ subfolder
+	_dir, _err := dir(nil)
+	if _err != nil {
+		return "", _err
+	}
+	_info := filepath.Join(_dir, "info")
+	_err = os.MkdirAll(_info, _GITMASK)
+	if _err != nil {
+		defer os.RemoveAll(_dir)
+		return "", _err
+	}
+
+	// create the exclude file
+	_exclude := filepath.Join(_info, "exclude")
+	_err = ioutil.WriteFile(_exclude, []byte(content), _GITMASK)
+	if _err != nil {
+		defer os.RemoveAll(_dir)
+		return "", _err
+	}
+
+	// return the temporary directory name
+	return _dir, nil
+} // exclude()
+
 func coincident(a, b gitignore.Position) bool {
 	return a.File == b.File &&
 		a.Line == b.Line &&

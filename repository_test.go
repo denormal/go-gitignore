@@ -17,12 +17,37 @@ type repositorytest struct {
 	errors    []gitignore.Error
 	bad       int
 	instance  func(string) (gitignore.GitIgnore, error)
+	exclude   string
+	gitdir    string
 } // repostorytest{}
 
-func (r *repositorytest) create(path string) (gitignore.GitIgnore, error) {
+func (r *repositorytest) create(path string, gitdir bool) (gitignore.GitIgnore, error) {
 	// if we have an error handler, reset the list of errors
 	if r.error != nil {
 		r.errors = make([]gitignore.Error, 0)
+	}
+
+	// should we create the global exclude file
+	r.gitdir = os.Getenv("GIT_DIR")
+	if gitdir {
+		// create a temporary file for the global exclude file
+		_exclude, _err := exclude(_GITEXCLUDE)
+		if _err != nil {
+			return nil, _err
+		}
+
+		// extract the current value of the GIT_DIR environment variable
+		// and set the value to be that of the temporary file
+		r.exclude = _exclude
+		_err = os.Setenv("GIT_DIR", r.exclude)
+		if _err != nil {
+			return nil, _err
+		}
+	} else {
+		_err := os.Unsetenv("GIT_DIR")
+		if _err != nil {
+			return nil, _err
+		}
 	}
 
 	// attempt to create the GitIgnore instance
@@ -43,6 +68,22 @@ func (r *repositorytest) create(path string) (gitignore.GitIgnore, error) {
 	return _repository, _err
 } // create()
 
+func (r *repositorytest) destroy() {
+	// remove the temporary files and directories
+	for _, _path := range []string{r.directory, r.exclude} {
+		if _path != "" {
+			defer os.RemoveAll(_path)
+		}
+	}
+
+	// reset the GIT_DIR environment variable
+	if r.gitdir == "" {
+		defer os.Unsetenv("GIT_DIR")
+	} else {
+		defer os.Setenv("GIT_DIR", r.gitdir)
+	}
+} // destroy()
+
 type invalidtest struct {
 	*repositorytest
 	tag   string
@@ -60,7 +101,7 @@ func TestRepository(t *testing.T) {
 	repository(t, _test, _REPOSITORYMATCHES)
 
 	// remove the temporary directory used for this test
-	defer os.RemoveAll(_test.directory)
+	defer _test.destroy()
 } // TestRepository()
 
 func TestRepositoryWithFile(t *testing.T) {
@@ -75,7 +116,7 @@ func TestRepositoryWithFile(t *testing.T) {
 	repository(t, _test, _REPOSITORYMATCHES)
 
 	// remove the temporary directory used for this test
-	defer os.RemoveAll(_test.directory)
+	defer _test.destroy()
 } // TestRepositoryWithFile()
 
 func TestRepositoryWithErrors(t *testing.T) {
@@ -96,7 +137,7 @@ func TestRepositoryWithErrors(t *testing.T) {
 	repository(t, _test, _REPOSITORYMATCHES)
 
 	// remove the temporary directory used for this test
-	defer os.RemoveAll(_test.directory)
+	defer _test.destroy()
 } // TestRepositoryWithErrors()
 
 func TestRepositoryWithErrorsFalse(t *testing.T) {
@@ -117,7 +158,7 @@ func TestRepositoryWithErrorsFalse(t *testing.T) {
 	repository(t, _test, _REPOSITORYMATCHESFALSE)
 
 	// remove the temporary directory used for this test
-	defer os.RemoveAll(_test.directory)
+	defer _test.destroy()
 } // TestRepositoryWithErrorsFalse()
 
 func TestRepositoryWithCache(t *testing.T) {
@@ -135,7 +176,7 @@ func TestRepositoryWithCache(t *testing.T) {
 	repository(t, _test, _REPOSITORYMATCHES)
 
 	// clean up
-	defer os.RemoveAll(_test.directory)
+	defer _test.destroy()
 
 	// rerun the tests while accumulating errors
 	_test.directory = ""
@@ -166,7 +207,7 @@ func TestRepositoryWithCache(t *testing.T) {
 			_test.directory, _err.Error(),
 		)
 	}
-	defer os.RemoveAll(_test.directory)
+	defer _test.destroy()
 
 	// repeat the repository tests
 	//		- these should succeed using just the cache data
@@ -280,8 +321,7 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 	}
 
 	// create the repository
-	//	_repository, _err := test.instance(test.directory)
-	_repository, _err := test.create(test.directory)
+	_repository, _err := test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())
 	}
@@ -310,7 +350,7 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 
 	// repeat the tests using relative paths
 	//	_repository, _err = test.instance(test.directory)
-	_repository, _err = test.create(test.directory)
+	_repository, _err = test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())
 	}
@@ -334,7 +374,7 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 
 	// first, perform Match() tests
 	//	_repository, _err = test.instance(test.directory)
-	_repository, _err = test.create(test.directory)
+	_repository, _err = test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())
 	}
@@ -348,7 +388,7 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 
 	// next, perform Absolute() tests
 	//	_repository, _err = test.instance(test.directory)
-	_repository, _err = test.create(test.directory)
+	_repository, _err = test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())
 	}
@@ -374,7 +414,7 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 		)
 	}
 	//	_repository, _err = test.instance(test.directory)
-	_repository, _err = test.create(test.directory)
+	_repository, _err = test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())
 	}
@@ -443,8 +483,7 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 	}
 
 	// perform the repository tests
-	//	_repository, _err = test.instance(test.directory)
-	_repository, _err = test.create(test.directory)
+	_repository, _err = test.create(test.directory, true)
 	if _err != nil {
 		t.Fatalf("unable to create repository: %s", _err.Error())
 	}
@@ -489,8 +528,7 @@ func invalid(t *testing.T, test *repositorytest) {
 	defer os.Remove(_file.Name())
 
 	// test repository instance creation against a file
-	//	_repository, _err := test.instance(_file.Name())
-	_repository, _err := test.create(_file.Name())
+	_repository, _err := test.create(_file.Name(), false)
 	if _err == nil {
 		t.Errorf(
 			"invalid repository error; expected %q, got nil",
@@ -521,8 +559,7 @@ func invalid(t *testing.T, test *repositorytest) {
 	}
 
 	// test repository instance creating against a missing file
-	//	_repository, _err = test.instance(_file.Name())
-	_repository, _err = test.create(_file.Name())
+	_repository, _err = test.create(_file.Name(), false)
 	if _err == nil {
 		t.Errorf(
 			"invalid repository error; expected %q, got nil",
@@ -576,8 +613,7 @@ func invalid(t *testing.T, test *repositorytest) {
 
 	// test repository instance creating against a relative path
 	//		- the relative path exists
-	//	_repository, _err = test.instance(gitignore.File)
-	_repository, _err = test.create(gitignore.File)
+	_repository, _err = test.create(gitignore.File, false)
 	if _err == nil {
 		t.Errorf("expected repository error, got nil")
 	} else if os.IsNotExist(_err) {
@@ -620,8 +656,7 @@ func invalid(t *testing.T, test *repositorytest) {
 		}
 
 		// create the new repository
-		//		_repository, _err := test.instance(_dir)
-		_repository, _err := test.create(_dir)
+		_repository, _err := test.create(_dir, false)
 		if _err != nil {
 			t.Fatalf("unable to create repository: %s", _err.Error())
 		}

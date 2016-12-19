@@ -161,7 +161,7 @@ git-sample-3/foo/*
 	_GITINVALIDPATTERNSFALSE = 0
 
 	// define the expected number of errors during repository matching
-	_GITREPOSITORYERRORS      = 28
+	_GITREPOSITORYERRORS      = 38
 	_GITREPOSITORYERRORSFALSE = 1
 )
 
@@ -455,8 +455,15 @@ var (
 `,
 	}
 
+	// define the patterns for $GIT_DIR/info/exclude
+	_GITEXCLUDE = `
+# exclude every file using 'exclude' in its name
+*exclude*
+`
+
 	// define repository match tests and their expected results
 	_REPOSITORYMATCHES = []match{
+		// matching against the nested .gitignore files
 		{"include.go", "", false},
 		{"ignore.go.bak", "*.bak", true},
 		{"a/ignore.go", "*.go", true},
@@ -485,6 +492,18 @@ var (
 		{"a/b/e/c/include.go", "!**/e/**", false},
 		{"a/b/e/c/include.go.bak", "!**/e/**", false},
 		{"a/b/e/c/include.sh", "!**/e/**", false},
+
+		// matching against GIT_DIR/info/exclude
+		{"exclude.me", "*exclude*", true},
+		{"a/exclude.me", "*exclude*", true},
+		{"a/b/exclude.me", "*exclude*", true},
+		{"a/b/c/exclude.me", "**/c/", true},
+		{"a/b/c/d/exclude.me", "**/c/", true},
+		{"a/c/exclude.me", "**/c/", true},
+		{"a/b/exclude.me", "*exclude*", true},
+		{"a/b/d/exclude.me", "*exclude*", true},
+		{"a/b/d/c/exclude.me", "*exclude*", true},
+		{"a/b/e/c/exclude.me", "!**/e/**", false},
 	}
 
 	// define the repository match tests and their expected results when the
