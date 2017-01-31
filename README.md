@@ -29,13 +29,21 @@ if err != nil {
     panic(err)
 }
 match := ignore.Relative("src/examples", true)
-if match == nil {
+if match != nil {
     if match.Include() {
         fmt.Printf(
             "include src/examples/ because of pattern %q at %s",
 			match, match.Position(),
 		)
     }
+}
+
+// if it's not important whether a path matches, but whether it is
+// ignored or included...
+if ignore.Ignore("src/test") {
+    fmt.Println("ignore src/test")
+} else if ignore.Include("src/github.com") {
+    fmt.Println("include src/github.com")
 }
 ```
 
