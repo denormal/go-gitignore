@@ -461,7 +461,7 @@ func repository(t *testing.T, test *repositorytest, m []match) {
 			if !os.IsNotExist(_underlying) {
 				t.Fatalf(
 					"unexpected Match() error for %s; expected %q, got %q",
-					_path, os.ErrNotExist.Error(), _path, _underlying.Error(),
+					_path, os.ErrNotExist.Error(), _underlying.Error(),
 				)
 			}
 		}
@@ -557,7 +557,7 @@ func invalid(t *testing.T, test *repositorytest) {
 
 	// ensure no repository is returned
 	if _repository != nil {
-		t.Error(
+		t.Errorf(
 			"invalid repository; expected nil, got %v",
 			_repository,
 		)

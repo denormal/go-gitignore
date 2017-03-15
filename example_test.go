@@ -2,12 +2,11 @@ package gitignore_test
 
 import (
 	"fmt"
-	"testing"
 
 	"github.com/denormal/go-gitignore"
 )
 
-func ExampleNewFromFile(t *testing.T) {
+func ExampleNewFromFile() {
 	ignore, err := gitignore.NewFromFile("/my/project/.gitignore")
 	if err != nil {
 		panic(err)
@@ -31,7 +30,7 @@ func ExampleNewFromFile(t *testing.T) {
 	}
 } // ExampleNewFromFile()
 
-func ExampleNewRepository(t *testing.T) {
+func ExampleNewRepository() {
 	ignore, err := gitignore.NewRepository("/my/project")
 	if err != nil {
 		panic(err)

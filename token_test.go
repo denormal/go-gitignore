@@ -11,7 +11,10 @@ func TestToken(t *testing.T) {
 	for _, _test := range _TOKENS {
 		// create the token
 		_position := gitignore.Position{
-			"file", _test.Line, _test.Column, _test.NewLine,
+			File:   "file",
+			Line:   _test.Line,
+			Column: _test.Column,
+			Offset: _test.NewLine,
 		}
 		_token := gitignore.NewToken(
 			_test.Type, []rune(_test.Token), _position,

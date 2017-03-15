@@ -29,7 +29,7 @@ func TestCache(t *testing.T) {
 	for _, _k := range _CACHEUNKNOWN {
 		_found := _cache.Get(_k)
 		if _found != nil {
-			t.Errorf("cache.Get() unexpected return for key $q; "+
+			t.Errorf("cache.Get() unexpected return for key %q; "+
 				"expected nil, got %v",
 				_k, _found,
 			)

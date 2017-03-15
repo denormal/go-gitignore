@@ -137,7 +137,10 @@ func lexer(t *testing.T, lines []string, eol string, tokens []token, e error) {
 			//		- since we will be testing with different line endings, we
 			//		  have to choose the correct offset
 			_position := gitignore.Position{
-				"", _expected.Line, _expected.Column, _expected.NewLine,
+				File:   "",
+				Line:   _expected.Line,
+				Column: _expected.Column,
+				Offset: _expected.NewLine,
 			}
 			if eol == "\r\n" {
 				_position.Offset = _expected.CarriageReturn
