@@ -84,6 +84,7 @@ and this is #3 ok too
 	//
 	// https://github.com/sdobz/backup/blob/master/gitignore/gitignore_test.go
 	_GITMATCH = `
+
 *.[oa]
 *.html
 *.min.js
@@ -123,7 +124,11 @@ README.md
 git-sample-3/*
 !git-sample-3/foo
 git-sample-3/foo/*
-!git-sample-3/foo/bar`
+!git-sample-3/foo/bar
+
+Documentation/*.pdf
+Documentation/**/p*.pdf
+`
 
 	// define the number of good & bad patterns in the .gitignore above
 	_GITPATTERNS    = 12
@@ -202,18 +207,15 @@ var (
 		{gitignore.EOL, "EOL", "\n", 3, 1, 22, 24},
 		// 4: !*.go
 		{gitignore.NEGATION, "NEGATION", "!", 4, 1, 23, 26},
-		{gitignore.WILDCARD, "WILDCARD", "*", 4, 2, 24, 27},
-		{gitignore.PATTERN, "PATTERN", ".go", 4, 3, 25, 28},
+		{gitignore.PATTERN, "PATTERN", "*.go", 4, 2, 24, 27},
 		{gitignore.EOL, "EOL", "\n", 4, 6, 28, 31},
 		// 5:
 		{gitignore.EOL, "EOL", "\n", 5, 1, 29, 33},
 		// 6: *.o
-		{gitignore.WILDCARD, "WILDCARD", "*", 6, 1, 30, 35},
-		{gitignore.PATTERN, "PATTERN", ".o", 6, 2, 31, 36},
+		{gitignore.PATTERN, "PATTERN", "*.o", 6, 1, 30, 35},
 		{gitignore.EOL, "EOL", "\n", 6, 4, 33, 38},
 		// 7: *.a
-		{gitignore.WILDCARD, "WILDCARD", "*", 7, 1, 34, 40},
-		{gitignore.PATTERN, "PATTERN", ".a", 7, 2, 35, 41},
+		{gitignore.PATTERN, "PATTERN", "*.a", 7, 1, 34, 40},
 		{gitignore.EOL, "EOL", "\n", 7, 4, 37, 43},
 		// 8:
 		{gitignore.EOL, "EOL", "\n", 8, 1, 38, 45},
@@ -291,7 +293,7 @@ var (
 		{gitignore.PATTERN, "PATTERN", "is", 18, 9, 214, 231},
 		{gitignore.SEPARATOR, "SEPARATOR", "/", 18, 11, 216, 233},
 		{gitignore.ANY, "ANY", "**", 18, 12, 217, 234},
-		{gitignore.WILDCARD, "WILDCARD", "*", 18, 14, 219, 236},
+		{gitignore.PATTERN, "PATTERN", "*", 18, 14, 219, 236},
 		{gitignore.SEPARATOR, "SEPARATOR", "/", 18, 15, 220, 237},
 		{gitignore.PATTERN, "PATTERN", "this", 18, 16, 221, 238},
 		{gitignore.EOL, "EOL", "\n", 18, 20, 225, 242},
@@ -301,8 +303,7 @@ var (
 		{gitignore.SEPARATOR, "SEPARATOR", "/", 19, 5, 230, 248},
 		{gitignore.PATTERN, "PATTERN", "is", 19, 6, 231, 249},
 		{gitignore.ANY, "ANY", "**", 19, 8, 233, 251},
-		{gitignore.WILDCARD, "WILDCARD", "*", 19, 10, 235, 253},
-		{gitignore.PATTERN, "PATTERN", "this", 19, 11, 236, 254},
+		{gitignore.PATTERN, "PATTERN", "*this", 19, 10, 235, 253},
 		{gitignore.EOL, "EOL", "\n", 19, 15, 240, 258},
 		// 20: northis** 	 x
 		{gitignore.PATTERN, "PATTERN", "northis", 20, 1, 241, 260},
@@ -368,6 +369,9 @@ var (
 		{"bar/", "", false, false},
 		{"bar/testfile", "", false, false},
 		{"dirpattern", "", false, false},
+		{"my/other/path/to/dirpattern", "", false, false},
+		{"my/path/to/dirpattern/", "dirpattern/", true, false},
+		{"my/path/to/dirpattern/some_file.txt", "", false, false},
 		{"Documentation/", "", false, false},
 		{"Documentation/foo-excl.html", "foo-excl.html", true, false},
 		{"Documentation/foo.html", "!foo*.html", false, false},
@@ -378,7 +382,10 @@ var (
 		{"exclude/dir1/dir2/", "exclude/**", true, false},
 		{"exclude/dir1/dir2/dir3/", "exclude/**", true, false},
 		{"exclude/dir1/dir2/dir3/testfile", "exclude/**", true, false},
+		{"exclude/other_file.txt", "exclude/**", true, false},
 		{"file.o", "*.[oa]", true, false},
+		{"foo/exclude/some_file.txt", "", false, false},
+		{"foo/exclude/other/file.txt", "", false, false},
 		{"foodir/", "", false, false},
 		{"foodir/bar/", "**/foodir/bar", true, false},
 		{"foodir/bar/testfile", "", false, false},
@@ -405,13 +412,18 @@ var (
 		{"subdir/logdir/", "", false, false},
 		{"subdir/logdir/log/", "**/logdir/log", true, false},
 		{"subdir/logdir/log/findthis.log", "!findthis*", false, false},
-		{"subdir/logdir/log/foo.log", "log/*.log", true, false},
-		{"subdir/logdir/log/test.log", "log/*.log", true, false},
+		{"subdir/logdir/log/foo.log", "", false, false},
+		{"subdir/logdir/log/test.log", "", false, false},
 		{"subdir/rootsubdir/", "", false, false},
 		{"subdir/rootsubdir/foo", "", false, false},
 		{"subdir/subdir2/", "subdir/subdir2/", true, false},
 		{"subdir/subdir2/bar", "", false, false},
 		{"README.md", "README.md", true, false},
+		{"my-path/README.md", "README.md", true, false},
+		{"my-path/also/README.md", "README.md", true, false},
+		{"Documentation/git.pdf", "Documentation/*.pdf", true, false},
+		{"Documentation/ppc/ppc.pdf", "Documentation/**/p*.pdf", true, false},
+		{"tools/perf/Documentation/perf.pdf", "", false, false},
 	}
 
 	// define the cache tests
@@ -453,6 +465,7 @@ var (
 		"a/b/d": `
 # include c directories
 !c/
+hidden/
 `,
 	}
 
@@ -545,7 +558,6 @@ var (
 		{gitignore.SEPARATOR, "SEPARATOR", "", 1, 2, 3, 4},
 		{gitignore.NEGATION, "NEGATION", "", 1, 2, 3, 4},
 		{gitignore.PATTERN, "PATTERN", "", 1, 2, 3, 4},
-		{gitignore.WILDCARD, "WILDCARD", "", 1, 2, 3, 4},
 		{gitignore.ANY, "ANY", "", 1, 2, 3, 4},
 		{gitignore.BAD, "BAD TOKEN", "", 1, 2, 3, 4},
 
@@ -601,7 +613,7 @@ var (
 		// 7: ** *
 		{gitignore.ANY, "ANY", "**", 7, 1, 100, 106},
 		{gitignore.WHITESPACE, "WHITESPACE", " ", 7, 3, 102, 108},
-		{gitignore.WILDCARD, "WILDCARD", "*", 7, 4, 103, 109},
+		{gitignore.PATTERN, "PATTERN", "*", 7, 4, 103, 109},
 		{gitignore.EOL, "EOL", "\n", 7, 5, 104, 110},
 		// 8: /\r
 		{gitignore.SEPARATOR, "SEPARATOR", "/", 8, 1, 105, 112},

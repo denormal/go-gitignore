@@ -16,7 +16,7 @@ type lexer struct {
 	_offset   int
 	_line     int
 	_column   int
-	_previous int
+	_previous []int
 } // lexer{}
 
 // Lexer is the interface to the lexical analyser for .gitignore files
@@ -77,7 +77,7 @@ func (l *lexer) Next() (*Token, Error) {
 	case _SEPARATOR:
 		return l.token(SEPARATOR, []rune{_r}, nil)
 
-	// any '**'
+	// '*' or any '**'
 	case _WILDCARD:
 		// is the wildcard followed by another wildcard?
 		//      - does this represent the "any" token (i.e. "**")
@@ -90,8 +90,10 @@ func (l *lexer) Next() (*Token, Error) {
 			return l.token(ANY, []rune{_WILDCARD, _WILDCARD}, nil)
 		}
 
-		// otherwise, return the wildcard token
-		return l.token(WILDCARD, []rune{_r}, nil)
+		// we have a single wildcard, so treat this as a pattern
+		l.unread(_r)
+		_rtn, _err := l.pattern()
+		return l.token(PATTERN, _rtn, _err)
 
 	// comment '#'
 	case _COMMENT:
@@ -162,7 +164,6 @@ func (l *lexer) read() (rune, Error) {
 	l._offset++
 	l._column++
 
-	// return the rune
 	return _r, l.err(_err)
 } // read()
 
@@ -193,8 +194,10 @@ func (l *lexer) unread(r ...rune) {
 	for ; _length > 0; _length-- {
 		l._offset--
 		if l._column == 1 {
-			l._column = l._previous
-			if l._line != 1 {
+			_length := len(l._previous)
+			if _length > 0 {
+				l._column = l._previous[_length-1]
+				l._previous = l._previous[:_length-1]
 				l._line--
 			}
 		} else {
@@ -221,7 +224,10 @@ func (l *lexer) peek() (rune, Error) {
 // newline adjusts the positional counters when an end of line is reached
 func (l *lexer) newline() {
 	// adjust the counters for the new line
-	l._previous = l._column
+	if l._previous == nil {
+		l._previous = make([]int, 0)
+	}
+	l._previous = append(l._previous, l._column)
 	l._column = 1
 	l._line++
 } // newline()
@@ -371,18 +377,15 @@ func (l *lexer) pattern() ([]rune, Error) {
 
 	// loop until there's nothing more to do
 	for {
-		_next, _err := l.read()
+		_r, _err := l.read()
 		if _err != nil {
 			return _pattern, _err
 		}
 
 		// what is the next rune?
-		switch _next {
+		switch _r {
 		// whitespace, newline, end of file, separator
-		//		- similarly for wildcard '*'
-		//		- we break at wildcard to enforce no '**' anywhere except
-		//		  at the start of a path, the end of a path, or between two
-		//		  path separators
+		//		- this is the end of the pattern
 		case _SPACE:
 			fallthrough
 		case _TAB:
@@ -393,13 +396,22 @@ func (l *lexer) pattern() ([]rune, Error) {
 			fallthrough
 		case _SEPARATOR:
 			fallthrough
-		case _WILDCARD:
-			// return this rune to the lexer
-			l.unread(_next)
-			fallthrough
 		case _EOF:
 			// return what we have
+			l.unread(_r)
 			return _pattern, nil
+
+		// a wildcard is the end of the pattern if it is part of any '**'
+		case _WILDCARD:
+			_next, _err := l.peek()
+			if _err != nil {
+				return _pattern, _err
+			} else if _next == _WILDCARD {
+				l.unread(_r)
+				return _pattern, _err
+			} else {
+				_pattern = append(_pattern, _r)
+			}
 
 		// escape sequence - consume the next rune
 		case _ESCAPE:
@@ -413,7 +425,7 @@ func (l *lexer) pattern() ([]rune, Error) {
 
 		// any other character, we add to the pattern
 		default:
-			_pattern = append(_pattern, _next)
+			_pattern = append(_pattern, _r)
 		}
 	}
 } // pattern()

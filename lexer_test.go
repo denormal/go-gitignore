@@ -129,7 +129,7 @@ func lexer(t *testing.T, lines []string, eol string, tokens []token, e error) {
 			if !coincident(_got.Position, _position) {
 				t.Fatalf(
 					"token position mismatch for %s; expected %s, got %s",
-					_got, pos(_got.Position), pos(_position),
+					_got, pos(_position), pos(_got.Position),
 				)
 			}
 

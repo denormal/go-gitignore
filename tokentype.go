@@ -11,7 +11,6 @@ const (
 	SEPARATOR
 	NEGATION
 	PATTERN
-	WILDCARD
 	ANY
 	BAD
 )
@@ -35,8 +34,6 @@ func (t TokenType) String() string {
 		return "NEGATION"
 	case PATTERN:
 		return "PATTERN"
-	case WILDCARD:
-		return "WILDCARD"
 	case ANY:
 		return "ANY"
 	default:

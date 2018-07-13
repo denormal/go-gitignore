@@ -191,38 +191,14 @@ func (p *path) Match(path string, isdir bool) bool {
 		return false
 	}
 
-	// should we match the whole path?
-	if p._anchored {
-		return fnmatch.Match(p._fnmatch, path, fnmatch.FNM_PATHNAME)
-	}
-
-	// attempt to extract the last N elements of the path to match
-	// the expected "depth" of this pattern
-	_depth := p._depth
-	_index := len(path) - 1
-	for ; _index >= 0; _index-- {
-		// this is safe to do, since the separator is a single-byte rune
-		if rune(path[_index]) == _SEPARATOR {
-			_depth--
-			if _depth < 0 {
-				break
-			}
-		}
-	}
-
-	// if we don't have enough elements in the given path, then we can't match
-	if _depth > 0 {
+	if fnmatch.Match(p._fnmatch, path, fnmatch.FNM_PATHNAME) {
+		return true
+	} else if p._anchored {
 		return false
 	}
 
-	// otherwise, truncate the path
-	_path := path
-	if _index >= 0 {
-		_path = path[_index+1:]
-	}
-
 	// match against the trailing path elements
-	return fnmatch.Match(p._fnmatch, _path, fnmatch.FNM_PATHNAME)
+	return fnmatch.Match(p._fnmatch, path, fnmatch.FNM_PATHNAME)
 } // Match()
 
 //
@@ -241,18 +217,6 @@ func (p *pattern) any(tokens []*Token) Pattern {
 		}
 	}
 
-	// if the pattern is not anchored at the start, but does not start with an
-	// 'any' token, then add an 'any' to the start of the set of tokens
-	//
-	// this simplifies the matching, since we can treat /fu/bar as **/fu/bar
-	if !p._anchored {
-		if tokens[0].Type != ANY {
-			_any := NewToken(ANY, nil, Position{})
-			_tokens = append([]*Token{_any}, _tokens...)
-		}
-	}
-
-	// store the tokens
 	return &any{*p, _tokens}
 } // any()
 
@@ -287,17 +251,10 @@ func (a *any) match(path []string, tokens []*Token) bool {
 	_token := tokens[0]
 	switch _token.Type {
 	case ANY:
-		// since we can match anything, whether we actually match is
-		// dependent on the tokens that follow
-
-		// do the remaining tokens match the existing path?
-		if a.match(path, tokens[1:]) {
-			return true
-
-		} else if len(path) != 0 {
-			// attempt to match the existing tokens against the
-			// rest of the path
-			return a.match(path[1:], tokens)
+		if len(path) == 0 {
+			return a.match(path, tokens[1:])
+		} else {
+			return a.match(path, tokens[1:]) || a.match(path[1:], tokens)
 		}
 
 	default:

@@ -226,8 +226,6 @@ func (p *parser) sequence(t *Token) ([]*Token, Error) {
 	// the path starts with whitespace, wildcard or a pattern
 	case WHITESPACE:
 		fallthrough
-	case WILDCARD:
-		fallthrough
 	case PATTERN:
 		return p.pattern(t)
 	}
@@ -258,8 +256,6 @@ func (p *parser) separator(t *Token) ([]*Token, Error) {
 		return append(_tokens, _next...), _err
 
 	case WHITESPACE:
-		fallthrough
-	case WILDCARD:
 		fallthrough
 	case PATTERN:
 		_next, _err := p.pattern(_token)
@@ -341,8 +337,6 @@ func (p *parser) pattern(t *Token) ([]*Token, Error) {
 		return append(_tokens, _next...), _err
 
 	case WHITESPACE:
-		fallthrough
-	case WILDCARD:
 		fallthrough
 	case PATTERN:
 		_next, _err = p.pattern(_token)
