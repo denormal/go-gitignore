@@ -53,6 +53,11 @@ type any struct {
 // negated, anchored to the start of the path (relative to the base directory
 // of tie containing .gitignore), or match directories only.
 func NewPattern(tokens []*Token) Pattern {
+	// if we have no tokens there is no pattern
+	if len(tokens) == 0 {
+		return nil
+	}
+
 	// extract the pattern position from first token
 	_position := tokens[0].Position
 	_string := tokenset(tokens).String()

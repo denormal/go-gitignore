@@ -169,6 +169,14 @@ Documentation/**/p*.pdf
 	// define the expected number of errors during repository matching
 	_GITREPOSITORYERRORS      = 38
 	_GITREPOSITORYERRORSFALSE = 1
+
+	// define a .gitignore file the contains just whitespace & comments
+	_GITIGNORE_WHITESPACE = `
+# this is an empty .gitignore file
+#	- the following lines contains just whitespace
+ 
+  		  	
+`
 )
 
 var (

@@ -24,8 +24,28 @@ func TestNewFromFile(t *testing.T) {
 	}
 
 	// perform the gitignore test
-	withfile(t, _test)
+	withfile(t, _test, _GITIGNORE)
 } // TestNewFromFile()
+
+func TestNewFromWhitespaceFile(t *testing.T) {
+	_test := &gitignoretest{}
+	_test.instance = func(file string) (gitignore.GitIgnore, error) {
+		return gitignore.NewFromFile(file)
+	}
+
+	// perform the gitignore test
+	withfile(t, _test, _GITIGNORE_WHITESPACE)
+} // TestNewFromWhitespaceFile()
+
+func TestNewFromEmptyFile(t *testing.T) {
+	_test := &gitignoretest{}
+	_test.instance = func(file string) (gitignore.GitIgnore, error) {
+		return gitignore.NewFromFile(file)
+	}
+
+	// perform the gitignore test
+	withfile(t, _test, "")
+} // TestNewFromEmptyFile()
 
 func TestNewWithErrors(t *testing.T) {
 	_test := &gitignoretest{}
@@ -57,10 +77,10 @@ func TestNewWithErrors(t *testing.T) {
 	}
 
 	// perform the gitignore test
-	withfile(t, _test)
+	withfile(t, _test, _GITIGNORE)
 
 	_test.error = nil
-	withfile(t, _test)
+	withfile(t, _test, _GITIGNORE)
 } // TestNewWithErrors()
 
 func TestNewWithCache(t *testing.T) {
@@ -92,14 +112,14 @@ func TestNewWithCache(t *testing.T) {
 	}
 
 	// perform the gitignore test
-	withfile(t, _test)
+	withfile(t, _test, _GITIGNORE)
 
 	// repeat the tests while accumulating errors
 	_test.error = func(e gitignore.Error) bool {
 		_test.errors = append(_test.errors, e)
 		return true
 	}
-	withfile(t, _test)
+	withfile(t, _test, _GITIGNORE)
 
 	// create a temporary .gitignore
 	_file, _err := file(_GITIGNORE)
@@ -185,9 +205,9 @@ func TestNew(t *testing.T) {
 	}
 } // TestNew()
 
-func withfile(t *testing.T, test *gitignoretest) {
+func withfile(t *testing.T, test *gitignoretest, content string) {
 	// create a temporary .gitignore
-	_file, _err := file(_GITIGNORE)
+	_file, _err := file(content)
 	if _err != nil {
 		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
 	}
@@ -241,7 +261,7 @@ func withfile(t *testing.T, test *gitignoretest) {
 		}
 	}
 
-	// test NewFromFile() behaves as expected if the .gtignore file does
+	// test NewFromFile() behaves as expected if the .gitgnore file does
 	// not exist
 	_err = os.Remove(_file.Name())
 	if _err != nil {
@@ -275,7 +295,7 @@ func withfile(t *testing.T, test *gitignoretest) {
 
 	// test NewFromFile() behaves as expected if absolute path of the
 	// .gitignore cannot be determined
-	_map := map[string]string{gitignore.File: _GITIGNORE}
+	_map := map[string]string{gitignore.File: content}
 	_dir, _err = dir(_map)
 	if _err != nil {
 		t.Fatalf("unable to create temporary directory: %s", _err.Error())
