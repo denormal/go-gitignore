@@ -201,8 +201,11 @@ func (r *repository) Absolute(path string, isdir bool) Match {
 	}
 
 	// extract the relative path of this file
-	_prefix := len(r.Base()) + 1
-	_rel := string(path[_prefix:])
+	_rel, err := filepath.Rel(r.Base(), path)
+	if err != nil {
+		return nil
+	}
+
 	return r.Relative(_rel, isdir)
 } // Absolute()
 
