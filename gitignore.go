@@ -199,11 +199,11 @@ func NewWithCache(file string, cache Cache, errors func(Error) bool) GitIgnore {
 	}
 
 	// return the ignore (if we have it)
-	if _ignore == empty {
-		return nil
-	} else {
+	if _ignore != empty {
 		return _ignore
 	}
+
+	return nil
 } // NewWithCache()
 
 // Base returns the directory containing the .gitignore file for this GitIgnore.
