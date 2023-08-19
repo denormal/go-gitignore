@@ -1,5 +1,10 @@
 # go-gitignore
 
+[![tests](https://github.com/ianlewis/go-gitignore/actions/workflows/pre-submit.units.yml/badge.svg)](https://github.com/ianlewis/go-gitignore/actions/workflows/pre-submit.units.yml)
+[![codecov](https://codecov.io/gh/ianlewis/go-gitignore/graph/badge.svg?token=DCWDZO1S23)](https://codecov.io/gh/ianlewis/go-gitignore)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ianlewis/go-gitignore)](https://goreportcard.com/report/github.com/ianlewis/go-gitignore)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ianlewis/go-gitignore/badge)](https://api.securityscorecards.dev/projects/github.com/ianlewis/go-gitignore)
+
 Package `go-gitignore` provides an interface for parsing `.gitignore` files,
 either individually, or within a repository, and
 matching paths against the retrieved patterns. Path matching is done using
