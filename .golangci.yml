@@ -79,8 +79,7 @@ linters:
     # TODO(#5): enable misspell linter
     # - misspell
     - nakedret
-    # TODO(#5): enable nestif linter
-    # - nestif
+    - nestif
     - nolintlint
     # TODO(#5): enable paralleltest linter
     # - paralleltest

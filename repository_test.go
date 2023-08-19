@@ -36,6 +36,31 @@ type repositorytest struct {
 	gitdir    string
 } // repostorytest{}
 
+func (r *repositorytest) setGitDir(gitdir bool) error {
+	// should we create the global exclude file
+	r.gitdir = os.Getenv("GIT_DIR")
+	if gitdir {
+		// create a temporary file for the global exclude file
+		_exclude, _err := exclude(_GITEXCLUDE)
+		if _err != nil {
+			return _err
+		}
+
+		// extract the current value of the GIT_DIR environment variable
+		// and set the value to be that of the temporary file
+		r.exclude = _exclude
+		if _err = os.Setenv("GIT_DIR", r.exclude); _err != nil {
+			return _err
+		}
+	} else {
+		if _err := os.Unsetenv("GIT_DIR"); _err != nil {
+			return _err
+		}
+	}
+
+	return nil
+}
+
 func (r *repositorytest) create(path string, gitdir bool) (gitignore.GitIgnore, error) {
 	// if we have an error handler, reset the list of errors
 	if r.error != nil {
@@ -43,27 +68,8 @@ func (r *repositorytest) create(path string, gitdir bool) (gitignore.GitIgnore, 
 	}
 
 	if r.file == gitignore.File || r.file == "" {
-		// should we create the global exclude file
-		r.gitdir = os.Getenv("GIT_DIR")
-		if gitdir {
-			// create a temporary file for the global exclude file
-			_exclude, _err := exclude(_GITEXCLUDE)
-			if _err != nil {
-				return nil, _err
-			}
-
-			// extract the current value of the GIT_DIR environment variable
-			// and set the value to be that of the temporary file
-			r.exclude = _exclude
-			_err = os.Setenv("GIT_DIR", r.exclude)
-			if _err != nil {
-				return nil, _err
-			}
-		} else {
-			_err := os.Unsetenv("GIT_DIR")
-			if _err != nil {
-				return nil, _err
-			}
+		if err := r.setGitDir(gitdir); err != nil {
+			return nil, err
 		}
 	}
 

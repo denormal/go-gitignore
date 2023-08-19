@@ -147,54 +147,55 @@ func parse(t *testing.T, test *parsetest) {
 			"parse pattern mismatch; expected %d patterns, got %d",
 			test.good, len(_patterns),
 		)
-	} else {
-		// ensure the good pattern positions are correct
-		for _i := 0; _i < len(_patterns); _i++ {
-			_got := _patterns[_i].Position()
-			_expected := _GITPOSITION[_i]
+		return
+	}
 
-			if !coincident(_got, _expected) {
-				t.Errorf(
-					"pattern position mismatch; expected %q, got %q",
-					pos(_expected), pos(_got),
-				)
-			}
+	// ensure the good pattern positions are correct
+	for _i := 0; _i < len(_patterns); _i++ {
+		_got := _patterns[_i].Position()
+		_expected := _GITPOSITION[_i]
+
+		if !coincident(_got, _expected) {
+			t.Errorf(
+				"pattern position mismatch; expected %q, got %q",
+				pos(_expected), pos(_got),
+			)
 		}
+	}
 
-		// ensure the retrieved patterns are correct
-		//		- we check the string form of the pattern against the respective
-		//	      lines from the .gitignore
-		//		- we must special-case patterns that end in whitespace that
-		//		  can be ignored (i.e. it's not escaped)
-		_lines := strings.Split(_GITIGNORE, "\n")
-		for _i := 0; _i < len(_patterns); _i++ {
-			_pattern := _patterns[_i]
-			_got := _pattern.String()
-			_line := _pattern.Position().Line
-			_expected := _lines[_line-1]
+	// ensure the retrieved patterns are correct
+	//		- we check the string form of the pattern against the respective
+	//	      lines from the .gitignore
+	//		- we must special-case patterns that end in whitespace that
+	//		  can be ignored (i.e. it's not escaped)
+	_lines := strings.Split(_GITIGNORE, "\n")
+	for _i := 0; _i < len(_patterns); _i++ {
+		_pattern := _patterns[_i]
+		_got := _pattern.String()
+		_line := _pattern.Position().Line
+		_expected := _lines[_line-1]
 
-			if _got != _expected {
-				// if the two strings aren't the same, then check to see if
-				// the difference is trailing whitespace
-				//		- the expected string may have whitespace, while the
-				//		  pattern string does not
-				//		- patterns have their trailing whitespace removed, so
-				//	    - we perform this check here, since it's possible for
-				//		  a pattern to end in a whitespace character (e.g. '\ ')
-				//		  and we don't want to be too heavy handed with our
-				//		  removal of whitespace
-				//		- only do this check for non-comments
-				if !strings.HasPrefix(_expected, "#") {
-					_new := strings.TrimRight(_expected, " \t")
-					if _new == _got {
-						continue
-					}
+		if _got != _expected {
+			// if the two strings aren't the same, then check to see if
+			// the difference is trailing whitespace
+			//		- the expected string may have whitespace, while the
+			//		  pattern string does not
+			//		- patterns have their trailing whitespace removed, so
+			//	    - we perform this check here, since it's possible for
+			//		  a pattern to end in a whitespace character (e.g. '\ ')
+			//		  and we don't want to be too heavy handed with our
+			//		  removal of whitespace
+			//		- only do this check for non-comments
+			if !strings.HasPrefix(_expected, "#") {
+				_new := strings.TrimRight(_expected, " \t")
+				if _new == _got {
+					continue
 				}
-				t.Errorf(
-					"pattern mismatch; expected %q, got %q at %s",
-					_expected, _got, pos(_pattern.Position()),
-				)
 			}
+			t.Errorf(
+				"pattern mismatch; expected %q, got %q at %s",
+				_expected, _got, pos(_pattern.Position()),
+			)
 		}
 	}
 } // parse()

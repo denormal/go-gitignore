@@ -115,58 +115,62 @@ func lexer(t *testing.T, lines []string, eol string, tokens []token, e error) {
 		// did we receive a token?
 		if _got == nil {
 			t.Fatalf("expected token at %s; none found", _lexer)
-		} else if _got.Type != _expected.Type {
+		}
+
+		if _got.Type != _expected.Type {
 			t.Fatalf(
 				"token type mismatch; expected type %d, got %d [%s]",
 				_expected.Type, _got.Type, _got,
 			)
-		} else if _got.Name() != _expected.Name {
+		}
+
+		if _got.Name() != _expected.Name {
 			t.Fatalf(
 				"token name mismatch; expected name %q, got %q [%s]",
 				_expected.Name, _got.Name(), _got,
 			)
-		} else {
-			// ensure the extracted token string matches expectation
-			//		- we handle EOL separately, since it can change based
-			//		  on the end of line sequence of the input file
-			_same := _got.Token() == _expected.Token
-			if _got.Type == gitignore.EOL {
-				_same = _got.Token() == eol
-			}
-			if !_same {
-				t.Fatalf(
-					"token value mismatch; expected name %q, got %q [%s]",
-					_expected.Token, _got.Token(), _got,
-				)
-			}
+		}
 
-			// ensure the token position matches the original lexer position
-			if !coincident(_got.Position, _position) {
-				t.Fatalf(
-					"token position mismatch for %s; expected %s, got %s",
-					_got, pos(_position), pos(_got.Position),
-				)
-			}
+		// ensure the extracted token string matches expectation
+		//		- we handle EOL separately, since it can change based
+		//		  on the end of line sequence of the input file
+		_same := _got.Token() == _expected.Token
+		if _got.Type == gitignore.EOL {
+			_same = _got.Token() == eol
+		}
+		if !_same {
+			t.Fatalf(
+				"token value mismatch; expected name %q, got %q [%s]",
+				_expected.Token, _got.Token(), _got,
+			)
+		}
 
-			// ensure the token position matches the expected position
-			//		- since we will be testing with different line endings, we
-			//		  have to choose the correct offset
-			_position := gitignore.Position{
-				File:   "",
-				Line:   _expected.Line,
-				Column: _expected.Column,
-				Offset: _expected.NewLine,
-			}
-			if eol == "\r\n" {
-				_position.Offset = _expected.CarriageReturn
-			}
-			if !coincident(_got.Position, _position) {
-				t.Log(pos(_got.Position) + "\t" + _got.String())
-				t.Fatalf(
-					"token position mismatch; expected %s, got %s",
-					pos(_position), pos(_got.Position),
-				)
-			}
+		// ensure the token position matches the original lexer position
+		if !coincident(_got.Position, _position) {
+			t.Fatalf(
+				"token position mismatch for %s; expected %s, got %s",
+				_got, pos(_position), pos(_got.Position),
+			)
+		}
+
+		// ensure the token position matches the expected position
+		//		- since we will be testing with different line endings, we
+		//		  have to choose the correct offset
+		_ignorePosition := gitignore.Position{
+			File:   "",
+			Line:   _expected.Line,
+			Column: _expected.Column,
+			Offset: _expected.NewLine,
+		}
+		if eol == "\r\n" {
+			_ignorePosition.Offset = _expected.CarriageReturn
+		}
+		if !coincident(_got.Position, _ignorePosition) {
+			t.Log(pos(_got.Position) + "\t" + _got.String())
+			t.Fatalf(
+				"token position mismatch; expected %s, got %s",
+				pos(_ignorePosition), pos(_got.Position),
+			)
 		}
 	}
 
