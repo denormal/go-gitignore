@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/denormal/go-gitignore"
+	"github.com/ianlewis/go-gitignore"
 )
 
 type token struct {

@@ -8,7 +8,7 @@ matching paths against the retrieved patterns. Path matching is done using
 support for recursive matching via the `**` pattern.
 
 ```go
-import "github.com/denormal/go-gitignore"
+import "github.com/ianlewis/go-gitignore"
 
 // match a file against a particular .gitignore
 ignore, err := gitignore.NewFromFile("/my/.gitignore")
@@ -47,7 +47,7 @@ if ignore.Ignore("src/test") {
 }
 ```
 
-For more information see `godoc github.com/denormal/go-gitignore`.
+For more information see `godoc github.com/ianlewis/go-gitignore`.
 
 ## Patterns
 
@@ -84,7 +84,7 @@ Two consecutive asterisks `**` in patterns matched against full pathname may hav
 `go-gitignore` can be installed using the standard Go approach:
 
 ```go
-go get github.com/denormal/go-gitignore
+go get github.com/ianlewis/go-gitignore
 ```
 
 ## License

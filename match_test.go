@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/denormal/go-gitignore"
+	"github.com/ianlewis/go-gitignore"
 )
 
 func TestMatch(t *testing.T) {

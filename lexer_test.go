@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denormal/go-gitignore"
+	"github.com/ianlewis/go-gitignore"
 )
 
 // TestLexerNewLne tests the behavour of the gitignore.Lexer when the input

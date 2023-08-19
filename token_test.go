@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/denormal/go-gitignore"
+	"github.com/ianlewis/go-gitignore"
 )
 
 func TestToken(t *testing.T) {
