@@ -33,8 +33,8 @@ if match != nil {
     if match.Include() {
         fmt.Printf(
             "include src/examples/ because of pattern %q at %s",
-			match, match.Position(),
-		)
+      match, match.Position(),
+    )
     }
 }
 
