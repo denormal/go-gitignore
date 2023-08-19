@@ -61,10 +61,8 @@ linters:
     - godox
     # TODO(#5): enable goerr113 linter
     # - goerr113
-    # TODO(#5): enable gofmt linter
-    # - gofmt
-    # TODO(#5): enable gofumpt linter
-    # - gofumpt
+    - gofmt
+    - gofumpt
     - goheader
     # TODO(#5): enable goimports linter
     # - goimports

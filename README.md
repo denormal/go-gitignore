@@ -89,8 +89,8 @@ go get github.com/ianlewis/go-gitignore
 
 ## License
 
-Copyright (c) 2023 Google LLC
-Copyright (c) 2020 Christian Muehlhaeuser <muesli@gmail.com>
+Copyright (c) 2023 Google LLC<br/>
+Copyright (c) 2020 Christian Muehlhaeuser <muesli@gmail.com><br/>
 Copyright (c) 2016 Denormal Limited
 
 [MIT License](LICENSE)
