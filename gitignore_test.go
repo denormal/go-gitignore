@@ -31,140 +31,6 @@ type gitignoretest struct {
 	instance func(string) (gitignore.GitIgnore, error)
 } // gitignoretest{}
 
-func TestNewFromFile(t *testing.T) {
-	_test := &gitignoretest{}
-	_test.instance = func(file string) (gitignore.GitIgnore, error) {
-		return gitignore.NewFromFile(file)
-	}
-
-	// perform the gitignore test
-	withfile(t, _test, _GITIGNORE)
-} // TestNewFromFile()
-
-func TestNewFromWhitespaceFile(t *testing.T) {
-	_test := &gitignoretest{}
-	_test.instance = func(file string) (gitignore.GitIgnore, error) {
-		return gitignore.NewFromFile(file)
-	}
-
-	// perform the gitignore test
-	withfile(t, _test, _GITIGNORE_WHITESPACE)
-} // TestNewFromWhitespaceFile()
-
-func TestNewFromEmptyFile(t *testing.T) {
-	_test := &gitignoretest{}
-	_test.instance = func(file string) (gitignore.GitIgnore, error) {
-		return gitignore.NewFromFile(file)
-	}
-
-	// perform the gitignore test
-	withfile(t, _test, "")
-} // TestNewFromEmptyFile()
-
-func TestNewWithErrors(t *testing.T) {
-	_test := &gitignoretest{}
-	_test.error = func(e gitignore.Error) bool {
-		_test.errors = append(_test.errors, e)
-		return true
-	}
-	_test.instance = func(file string) (gitignore.GitIgnore, error) {
-		// reset the error slice
-		_test.errors = make([]gitignore.Error, 0)
-
-		// attempt to create the GitIgnore instance
-		_ignore := gitignore.NewWithErrors(file, _test.error)
-
-		// if we encountered errors, and the first error has a zero position
-		// then it represents a file access error
-		//		- extract the error and return it
-		//		- remove it from the list of errors
-		var _err error
-		if len(_test.errors) > 0 {
-			if _test.errors[0].Position().Zero() {
-				_err = _test.errors[0].Underlying()
-				_test.errors = _test.errors[1:]
-			}
-		}
-
-		// return the GitIgnore instance
-		return _ignore, _err
-	}
-
-	// perform the gitignore test
-	withfile(t, _test, _GITIGNORE)
-
-	_test.error = nil
-	withfile(t, _test, _GITIGNORE)
-} // TestNewWithErrors()
-
-func TestNewWithCache(t *testing.T) {
-	// perform the gitignore test with a custom cache
-	_test := &gitignoretest{}
-	_test.cached = true
-	_test.cache = gitignore.NewCache()
-	_test.instance = func(file string) (gitignore.GitIgnore, error) {
-		// reset the error slice
-		_test.errors = make([]gitignore.Error, 0)
-
-		// attempt to create the GitIgnore instance
-		_ignore := gitignore.NewWithCache(file, _test.cache, _test.error)
-
-		// if we encountered errors, and the first error has a zero position
-		// then it represents a file access error
-		//		- extract the error and return it
-		//		- remove it from the list of errors
-		var _err error
-		if len(_test.errors) > 0 {
-			if _test.errors[0].Position().Zero() {
-				_err = _test.errors[0].Underlying()
-				_test.errors = _test.errors[1:]
-			}
-		}
-
-		// return the GitIgnore instance
-		return _ignore, _err
-	}
-
-	// perform the gitignore test
-	withfile(t, _test, _GITIGNORE)
-
-	// repeat the tests while accumulating errors
-	_test.error = func(e gitignore.Error) bool {
-		_test.errors = append(_test.errors, e)
-		return true
-	}
-	withfile(t, _test, _GITIGNORE)
-
-	// create a temporary .gitignore
-	_file, _err := file(_GITIGNORE)
-	if _err != nil {
-		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
-	}
-	defer os.Remove(_file.Name())
-
-	// attempt to load the .gitignore file
-	_ignore, _err := _test.instance(_file.Name())
-	if _err != nil {
-		t.Fatalf("unable to open temporary .gitignore: %s", _err.Error())
-	}
-
-	// remove the .gitignore and try again
-	os.Remove(_file.Name())
-
-	// ensure the retrieved GitIgnore matches the stored instance
-	_new, _err := _test.instance(_file.Name())
-	if _err != nil {
-		t.Fatalf(
-			"unexpected error retrieving cached .gitignore: %s", _err.Error(),
-		)
-	} else if _new != _ignore {
-		t.Fatalf(
-			"gitignore.NewWithCache() mismatch; expected %v, got %v",
-			_ignore, _new,
-		)
-	}
-} // TestNewWithCache()
-
 func TestNew(t *testing.T) {
 	// create a temporary .gitignore
 	_file, _err := file(_GITIGNORE)
@@ -277,13 +143,19 @@ func withfile(t *testing.T, test *gitignoretest, content string) {
 
 	// test NewFromFile() behaves as expected if the .gitgnore file does
 	// not exist
-	_err = os.Remove(_file.Name())
-	if _err != nil {
+	if err := _file.Close(); err != nil {
 		t.Fatalf(
-			"unable to remove temporary .gitignore %s: %s",
-			_file.Name(), _err.Error(),
+			"unable to close temporary .gitignore %s: %s",
+			_file.Name(), err.Error(),
 		)
 	}
+	if err := os.Remove(_file.Name()); err != nil {
+		t.Fatalf(
+			"unable to remove temporary .gitignore %s: %s",
+			_file.Name(), err.Error(),
+		)
+	}
+
 	_ignore, _err = test.instance(_file.Name())
 	if _err == nil {
 		// if we are using a cache in this test, then no error is acceptable

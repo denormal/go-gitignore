@@ -34,8 +34,7 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
-          # TODO(#3): Re-enable windows tests.
-          # - windows-latest
+          - windows-latest
     runs-on: ${{ matrix.os }}
     if: ${{ always() }}
     steps:

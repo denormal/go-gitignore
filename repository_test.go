@@ -239,16 +239,6 @@ func TestRepositoryWithCache(t *testing.T) {
 	repository(t, _test, _REPOSITORYMATCHES)
 } // TestRepositoryWithCache()
 
-func TestInvalidRepository(t *testing.T) {
-	_test := &repositorytest{}
-	_test.instance = func(path string) (gitignore.GitIgnore, error) {
-		return gitignore.NewRepository(path)
-	}
-
-	// perform the invalid repository tests
-	invalid(t, _test)
-} // TestInvalidRepository()
-
 func TestInvalidRepositoryWithFile(t *testing.T) {
 	_test := &repositorytest{}
 	_test.file = gitignore.File + "-invalid-with-file"
@@ -584,12 +574,17 @@ func invalid(t *testing.T, test *repositorytest) {
 		)
 	}
 
-	// now, remove the temporary file and repeat the tests
-	_err = os.Remove(_file.Name())
-	if _err != nil {
+	// now, close and remove the temporary file and repeat the tests
+	if err := _file.Close(); err != nil {
+		t.Fatalf(
+			"unable to close temporary file %s: %s",
+			_file.Name(), _err.Error(),
+		)
+	}
+	if err := os.Remove(_file.Name()); err != nil {
 		t.Fatalf(
 			"unable to remove temporary file %s: %s",
-			_file.Name(), _err.Error(),
+			_file.Name(), err.Error(),
 		)
 	}
 

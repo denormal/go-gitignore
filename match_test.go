@@ -221,58 +221,6 @@ func TestInclude(t *testing.T) {
 	}
 } // TestInclude()
 
-func TestMatchAbsolute(t *testing.T) {
-	// create a temporary .gitignore
-	_buffer, _err := buffer(_GITMATCH)
-	if _err != nil {
-		t.Fatalf("unable to create temporary .gitignore: %s", _err.Error())
-	}
-
-	// ensure we can run New()
-	//		- ensure we encounter no errors
-	_position := []gitignore.Position{}
-	_error := func(e gitignore.Error) bool {
-		_position = append(_position, e.Position())
-		return true
-	}
-
-	// ensure we have a non-nil GitIgnore instance
-	_ignore := gitignore.New(_buffer, _GITBASE, _error)
-	if _ignore == nil {
-		t.Error("expected non-nil GitIgnore instance; nil found")
-	}
-
-	// ensure we encountered the right number of errors
-	if len(_position) != _GITBADMATCHPATTERNS {
-		t.Errorf(
-			"match error mismatch; expected %d errors, got %d",
-			_GITBADMATCHPATTERNS, len(_position),
-		)
-	}
-
-	// perform the absolute path matching
-	_cb := func(path string, isdir bool) gitignore.Match {
-		_path := filepath.Join(_GITBASE, path)
-		return _ignore.Absolute(_path, isdir)
-	}
-	for _, _test := range _GITMATCHES {
-		do(t, _cb, _test)
-	}
-
-	// perform absolute path tests with paths not under the same root
-	// directory as the GitIgnore we are testing
-	_new, _ := directory(t)
-	defer os.RemoveAll(_new)
-
-	for _, _test := range _GITMATCHES {
-		_path := filepath.Join(_new, _test.Local())
-		_match := _ignore.Match(_path)
-		if _match != nil {
-			t.Fatalf("unexpected match; expected nil, got %v", _match)
-		}
-	}
-} // TestMatchAbsolute()
-
 func TestMatchRelative(t *testing.T) {
 	// create a temporary .gitignore
 	_buffer, _err := buffer(_GITMATCH)

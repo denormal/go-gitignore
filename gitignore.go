@@ -71,7 +71,7 @@ type ignore struct {
 	_errors  func(Error) bool
 }
 
-// NewGitIgnore creates a new GitIgnore instance from the patterns listed in t,
+// New creates a new GitIgnore instance from the patterns listed in t,
 // representing a .gitignore file in the base directory. If errors is given, it
 // will be invoked for every error encountered when parsing the .gitignore
 // patterns. Parsing will terminate if errors is called and returns false,
@@ -163,6 +163,9 @@ func NewWithErrors(file string, errors func(Error) bool) GitIgnore {
 		_errors(NewError(_err, Position{}))
 		return nil
 	}
+	// NOTE: We close the file handle here because the `ignore` type doesn't
+	// make use of the reader after the initial call to New()
+	defer _fh.Close()
 
 	// return the GitIgnore instance
 	return New(_fh, _base, _errors)
