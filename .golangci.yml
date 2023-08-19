@@ -39,45 +39,69 @@ linters:
     - asciicheck
     - depguard
     - dogsled
+    # TODO(#5): enable errcheck linter
     # - errcheck
+    # TODO(#5): enable errorlint linter
     # - errorlint
+    # TODO(#5): enable exhaustive linter
     # - exhaustive
     - exportloopref
+    # TODO(#5): enable gci linter
     # - gci
     - gochecknoinits
+    # TODO(#5): enable gocognit linter
     # - gocognit
     - goconst
+    # TODO(#5): enable gocritic linter
     # - gocritic
+    # TODO(#5): enable gocyclo linter
     # - gocyclo
+    # TODO(#5): enable godot linter
     # - godot
     - godox
+    # TODO(#5): enable goerr113 linter
     # - goerr113
+    # TODO(#5): enable gofmt linter
     # - gofmt
+    # TODO(#5): enable gofumpt linter
     # - gofumpt
     - goheader
+    # TODO(#5): enable goimports linter
     # - goimports
     - gomodguard
     - goprintffuncname
     - gosec
+    # TODO(#5): enable gosimple linter
     # - gosimple
     - govet
+    # TODO(#5): enable ineffassign linter
     # - ineffassign
     - lll
     - makezero
+    # TODO(#5): enable misspell linter
     # - misspell
     - nakedret
+    # TODO(#5): enable nestif linter
     # - nestif
     - nolintlint
+    # TODO(#5): enable paralleltest linter
     # - paralleltest
+    # TODO(#5): enable predeclared linter
     # - predeclared
+    # TODO(#5): enable revive linter
     # - revive
+    # TODO(#5): enable staticcheck linter
     # - staticcheck
+    # TODO(#5): enable stylecheck linter
     # - stylecheck
+    # TODO(#5): enable thelper linter
     # - thelper
     - typecheck
+    # TODO(#5): enable unconvert linter
     # - unconvert
     - unused
     - whitespace
+    # TODO(#5): enable wrapcheck linter
     # - wrapcheck
 linters-settings:
   depguard:
