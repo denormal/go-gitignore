@@ -172,6 +172,19 @@ func (p *parser) negation(t *Token) (Pattern, Error) {
 		return nil, _err
 	}
 
+	// remove trailing whitespace tokens
+	_length := len(_tokens)
+	for _length > 0 {
+		// if we have a non-whitespace token, we can stop
+		_length--
+		if _tokens[_length].Type != WHITESPACE {
+			break
+		}
+
+		// otherwise, truncate the token list
+		_tokens = _tokens[:_length]
+	}
+
 	// include the "negation" token at the front of the sequence
 	_tokens = append([]*Token{t}, _tokens...)
 
@@ -442,3 +455,4 @@ func (p *parser) errors(e Error) bool {
 	//      - if this returns false, parsing will stop
 	return p._error(e)
 } // errors()
+
